@@ -21,14 +21,15 @@ uint32_t module_api(uint32_t func, ...){
             if(structure == 0){
                 return_value =  -1;
             }
-            vector_push(modules, structure);
             uint32_t tmp = pm_alloc();
             (structure->key) = (modules->size ^ 190507) + tmp << 12 ^ 4405648937 ^ 8592807313 >> 5;
             structure->key & 0xffffff00 | modules->size;
+            vector_push(modules, structure);
             pm_free(tmp);
             return_value = 0;
+            printf("vector size -> %d", structure->key);
             break;
-        case MODULE_API_ADDINT:
+            case MODULE_API_ADDINT:
             uint32_t int_index = va_arg(vars, uint32_t);
             uint32_t key = va_arg(vars, uint32_t);
             void *interrupt_handler = va_arg(vars, void *);
@@ -124,16 +125,19 @@ uint32_t module_api(uint32_t func, ...){
             uint32_t size = va_arg(vars, uint32_t);
             return_value = (uint32_t)kmalloc_page_paddr((uint32_t)paddr, size);
             break;
-        case MODULE_ADD_FS_HANDLER:
-            void *handler = va_arg(vars, void (*)(void *, uint32_t, ...));
+        case MODULE_MESSAGE_HANDLER:
             key = va_arg(vars, uint32_t);
-            vfs_add_mount_handler(handler, key);
+            void *handler = va_arg(vars, void (*)());
+            for(int i = 0; i < modules->size; i++){
+                module_t* module = ((module_t *)vector_get(i, modules));
+                if(module->key == key){
+                    module->message_handler = handler;
+                    return_value = 0;
+                    break;
+                }
+                return_value = -1;
+            }
             break;
-        case MODULE_DEL_FS_HANDLER:
-            key = va_arg(vars, uint32_t);
-            vfs_del_mount_handler(key);
-            break;
-        
     }
     va_end(vars);
     return return_value;

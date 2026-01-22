@@ -29,6 +29,7 @@ void initrc_read(vfile_t *file){
         }
         if(!strcmp(statement, "ECHO")){
             //this is purely for testing purposes.
+            printf("[ INITRC ]");
             i++;
             while(ptr[i] != '\n' && ptr[i]){
                 if(ptr[i] != '\"'){

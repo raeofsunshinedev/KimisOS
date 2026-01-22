@@ -61,17 +61,30 @@ void vector_set(uint32_t pos, vector_t *vector, void *new_element){
         ((uint8_t *)(vector->ptr))[i] = ((uint8_t *)new_element)[i];
     }
 }
+// void vector_push(vector_t *vector, void *new_element){
+//     if((vector->size * vector->sizeof_elements)/4096 > ((vector->size + 1) * vector->sizeof_elements)/4096){
+//         vector->size++;
+//         void *newptr = kmalloc((vector->size * vector->sizeof_elements)/4096);
+//         for(uint8_t i = 0; i < (vector->size - 1) * vector->sizeof_elements; i++){
+//             ((uint8_t *)(newptr))[i] = ((uint8_t *)vector->ptr)[i * vector->size];
+//         }
+//     }
+//     for(uint32_t i = 0; i < vector->sizeof_elements; i++){
+//         ((uint8_t *)(vector->ptr))[vector->size + i] = ((uint8_t *)new_element)[vector->size + i];
+//     }
+//     printf(" (vector push ) %d", vector->size);
+// }
 void vector_push(vector_t *vector, void *new_element){
-    if((vector->size * vector->sizeof_elements)/4096 + 1> ((vector->size + 1) * vector->sizeof_elements)/4096 + 1){
-        vector->size++;
+    if(((vector->size + 1) * vector->sizeof_elements) >> 12 != (vector->size * vector->sizeof_elements)){
         void *newptr = kmalloc((vector->size * vector->sizeof_elements)/4096);
         for(uint8_t i = 0; i < (vector->size - 1) * vector->sizeof_elements; i++){
             ((uint8_t *)(newptr))[i] = ((uint8_t *)vector->ptr)[i * vector->size];
         }
     }
     for(uint32_t i = 0; i < vector->sizeof_elements; i++){
-        ((uint8_t *)(vector->ptr))[vector->size + i] = ((uint8_t *)new_element)[vector->size + i];
+        ((uint8_t *)(vector->ptr))[vector->size + i] = ((uint8_t *)new_element)[i];
     }
+    vector->size++;
 }
 void vector_pop(uint32_t pos, vector_t *vector, void *element){
     for(uint32_t i = 0; i < vector->sizeof_elements; i++){

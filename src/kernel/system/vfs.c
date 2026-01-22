@@ -69,25 +69,25 @@ void vfs_detect_partitions(vfile_t *file){
     return;
 }
 
-void vfs_add_mount_handler(int (*mount_handler)(vfile_t *device, MOUNT_OPERATION op, ...), uint32_t key){
-    if(mount_handler == 0){
-        return;
-    }
-    for(uint32_t i = 0; i < 32; i++){
-        if(mount_handlers[i].callback == 0){
-            mount_handlers[i].callback = mount_handler;
-            mount_handlers[i].key = key;
-        }
-    }
-}
-void vfs_del_mount_handler(uint32_t key){
-    for(uint32_t i = 0; i < 32; i++){
-        if(mount_handlers[i].key == key){
-            mount_handlers[i].callback = 0;
-            mount_handlers[i].key = 0;
-        }
-    }
-}
+// void vfs_add_mount_handler(int (*mount_handler)(vfile_t *device, MOUNT_OPERATION op, ...), uint32_t key){
+//     if(mount_handler == 0){
+//         return;
+//     }
+//     for(uint32_t i = 0; i < 32; i++){
+//         if(mount_handlers[i].callback == 0){
+//             mount_handlers[i].callback = mount_handler;
+//             mount_handlers[i].key = key;
+//         }
+//     }
+// }
+// void vfs_del_mount_handler(uint32_t key){
+//     for(uint32_t i = 0; i < 32; i++){
+//         if(mount_handlers[i].key == key){
+//             mount_handlers[i].callback = 0;
+//             mount_handlers[i].key = 0;
+//         }
+//     }
+// }
 
 void vfs_init(){
     mlog(MODULE_NAME, "Initializing VFS\n", MLOG_PRINT);

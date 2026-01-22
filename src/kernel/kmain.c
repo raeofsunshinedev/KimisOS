@@ -39,6 +39,7 @@ void sysinit(){
         vfs_detect_partitions(dir_data[i]);
     }
     printf("Bleh\n");
+    //why did i stop working on this? what was wrong with this?
     for(;;);
 }
 extern void kmain(kernel_info_t *kernel_info){

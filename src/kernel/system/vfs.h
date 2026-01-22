@@ -82,6 +82,6 @@ int fwrite(vfile_t *file_entry, void *byte_array, uint32_t offset, uint32_t coun
 int fread(vfile_t *file_entry, void *byte_array, uint32_t offset, uint32_t count);
 vfile_t *search_dir(char *name, vfile_t dir);
 vfile_t *fopen(char *name);
-void vfs_del_mount_handler(uint32_t key);
-void vfs_add_mount_handler(int (*mount_handler)(vfile_t *device, MOUNT_OPERATION op, ...), uint32_t key);
+// void vfs_del_mount_handler(uint32_t key);
+// void vfs_add_mount_handler(int (*mount_handler)(vfile_t *device, MOUNT_OPERATION op, ...), uint32_t key);
 void vfs_detect_partitions(vfile_t *file);

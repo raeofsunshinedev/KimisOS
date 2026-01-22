@@ -18,6 +18,7 @@ typedef struct vector{
     void *ptr;
     uint32_t size;
     uint32_t sizeof_elements;
+    uint32_t pages;
 }vector_t;
 
 vector_t *init_vector(void *vecptr, uint32_t sizeof_elements, uint32_t elements, void *initializer);

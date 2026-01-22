@@ -21,8 +21,7 @@ enum MODULE_API_FUNCS{
     MODULE_API_FREE, //free memory allocated by malloc
     MODULE_API_PMALLOC64K,
     MODULE_API_KMALLOC_PADDR,
-    MODULE_ADD_FS_HANDLER,
-    MODULE_DEL_FS_HANDLER,
+    MODULE_MESSAGE_HANDLER
 };
 
 typedef uint32_t (*KOS_MAPI_FP)(unsigned int function, ...);
@@ -33,6 +32,7 @@ typedef struct module{
     uint8_t flags;
     uint16_t interrupts;
     uint32_t key;
+    void (*message_handler)(uint32_t message, ...);
     void (*fini)(void);
 }module_t;
 
