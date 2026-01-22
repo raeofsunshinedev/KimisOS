@@ -142,6 +142,14 @@ uint32_t module_api(uint32_t func, ...){
     va_end(vars);
     return return_value;
 }
+
+void dispatch_message(uint32_t message, ...){
+    va_list args;
+    va_start(args, message);
+    
+    va_end(args);
+}
+
 void module_start(void *ptr){
     void (*entry)(void* api, uint32_t version) = load_elf(ptr, PT_SYS);
     (*entry)(module_api, 0);
