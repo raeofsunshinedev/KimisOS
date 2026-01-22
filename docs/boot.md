@@ -31,7 +31,8 @@ It's not very feature rich, cause it's whole purpose was to do the bare minimum 
 
 - Module loading
 
-	Since i want to have a modular kernel, I'll need to somehow load modules for disks and filesystems at boot time. While I would do this now, I don't have any modules to boot, nor a kernel to use said modules, so I'm going to hold off on this until I'm a bit into my kernel and start needing actual modules. (It's going to be So Fun making this work. Maybe I'll just load the file and have the kernel take care of symbol patching?) this also requires reading and parsing config files, which I am not ready to start working on... Yet. 
+	<!-- Since i want to have a modular kernel, I'll need to somehow load modules for disks and filesystems at boot time. While I would do this now, I don't have any modules to boot, nor a kernel to use said modules, so I'm going to hold off on this until I'm a bit into my kernel and start needing actual modules. (It's going to be So Fun making this work. Maybe I'll just load the file and have the kernel take care of symbol patching?) this also requires reading and parsing config files, which I am not ready to start working on... Yet. -->
+	Currently, the bootloader only supports loading a second file alongside the kernel, named `initrd.rd` It is up to the person using the bootloader to either include `initrd.rd` within their filesystem, to include necesary files within their `initrd` and the kernel to accurately handle the `initrd` as needed. For Kimi's OS, this is done by making the `initrd` a tarball in ustar format containing the `initrc`, `ifsm.elf` and `idm.elf`. 
 
 - Multiboot support
 
@@ -78,9 +79,6 @@ While any GDT loaded for the Kernel will work, once the Kernel wants to load use
 |0x20 |User Code (32)  |
 |0x28 |User Data (32)  |
 |0x30 |TSS			   |
-
-### Module Loading
-	At boot time, only two mucles are loaded. One for the disk driver, and one for the file system driver. These modules must be located in the files `/idm.elf` and `ifsm.elf`, respectively. When loaded, these modules are simply the raw data straight from the file, and the ELF header must be parsed and the segments loaded properly by the kernel itself.
 
 ### Error Codes
 
