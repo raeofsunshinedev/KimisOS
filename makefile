@@ -27,12 +27,10 @@ tools:
 
 mount: bootloader tools kernel
 	cp bin/bootloader.bin image.bin
-	qemu-img resize -f raw image.bin 512M
-	./diskwrite -l idm.elf ifsm.elf kernel.elf -o image.bin
+	qemu-img resize -f raw image.bin 64M
+	tar --format=ustar -cf initrd.rd idm.elf ifsm.elf initrc.conf
+	./diskwrite initrd.rd kernel.elf -o image.bin
 	sudo mount image.bin mount
-	sudo mkdir mount/mod
-	sudo mkdir mount/bin
-	sudo mkdir mount/sys
 	@echo "\e[31mrun 'sudo umount mount' to unmount\e[0m"
 
 bootloader:
