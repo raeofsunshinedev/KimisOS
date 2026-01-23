@@ -3,6 +3,12 @@
 #include "../drivers/cpuio.h"
 #include <stdint.h>
 
+uint8_t in_interrupt = 0;
+
+uint8_t get_in_interrupt(){
+    return in_interrupt;
+}
+
 extern void _isr0();
 extern void _isr1();
 extern void _isr2();
@@ -67,6 +73,7 @@ inline void set_idt_entry(uint32_t index, void *ptr, uint8_t flags, uint16_t seg
 
 
 cpu_registers_t *_irq_handler(cpu_registers_t *regs){
+    in_interrupt = 1;
     regs->esp = (uint32_t)regs;
     if(regs->int_no == 0x80){
         regs = syscall(regs);
@@ -82,6 +89,7 @@ cpu_registers_t *_irq_handler(cpu_registers_t *regs){
     if(regs->int_no >= 0x28){
         outb(0xa0, 0x20);
     }
+    in_interrupt = 0;
     return regs;
 }
 

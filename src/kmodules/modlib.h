@@ -21,7 +21,11 @@ enum MODULE_API_FUNCS{
     MODULE_API_FREE, //free memory allocated by malloc
     MODULE_API_PMALLOC64K,
     MODULE_API_KMALLOC_PADDR,
-    MODULE_MESSAGE_HANDLER
+    MODULE_MESSAGE_HANDLER,
+    MODULE_API_BLOCK_PID,
+    MODULE_API_UNBLOCK_PID,
+    MODULE_API_GET_CPID,
+    MODULE_API_IS_INTERRUPT,
 };
 
 typedef uint32_t (*KOS_MAPI_FP)(unsigned int function, ...);
@@ -102,3 +106,6 @@ inline vfile_t *fcreate(KOS_MAPI_FP api, char *filename, VFILE_TYPE type, char *
 inline void puts(KOS_MAPI_FP api, char *mname, char *str){
     api(MODULE_API_PRINT, mname, str);
 };
+inline uint8_t is_interrupt(KOS_MAPI_FP api){
+    return api(MODULE_API_IS_INTERRUPT);
+}

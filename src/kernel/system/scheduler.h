@@ -28,3 +28,6 @@ void scheduler_init();
 uint32_t thread_start(void (*function)());
 void thread_join(uint32_t thread_id, uint32_t *exit_code);
 void thread_exit(uint32_t exit_code);
+void set_pid_blocked(uint32_t pid);
+void set_pid_unblocked(uint32_t pid);
+uint32_t get_current_pid();

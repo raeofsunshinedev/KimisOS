@@ -139,6 +139,7 @@ enum DRIVE_TYPE{
 uint32_t volatile transferring_disk_index = -1;
 uint32_t expected_ints = 0;
 uint32_t recieved_ints = 0;
+uint32_t transferring_pid = 0;
 
 typedef struct drive_desc{
     uint32_t BARs[8];
@@ -162,14 +163,15 @@ int ata_ready(uint32_t BAR, uint32_t BAR2, uint8_t drive){
     static uint16_t last_bar = 0;
     if(last_disk != drive && last_bar != BAR){
         last_disk = drive;
-        last_bar == BAR;
+        last_bar = BAR;
         outb(BAR + ATA_DRIVE_HEAD, drive);
     }
     for(uint32_t i = 0; i < 4; i++){
         uint8_t _ = inb(BAR2 + ATA_STATUS);
     }
     uint8_t status = inb(BAR2 ATA_ALT_STATUS);
-    return (status >> 7) == 0;
+    // api(MODULE_API_PRINT, MODULE_NAME, "Status: %x", status);
+    return (status >> 7) == 0 && !((status >> 3) & 1);
 }
 
 void ata_reset(uint16_t bar1){
@@ -186,6 +188,7 @@ uint32_t find_free_drive(){
             return i;
         }
     }
+    return -1;
 }
 
 int ata_write(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
@@ -267,10 +270,17 @@ int ata_write(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
     // }
     
     // while (transferring_disk_index != -1);
-    while(ATA_BSY(status)){
-        status = inb(io_base + ATA_STATUS);
+    //!TODO! SUPER IMPORTANT!!!! MARK CURRENT THREAD AS BLOCKED AND RE-ENTER AFTER IRQ IS FIRED
+    // while(ATA_BSY(status)){
+    //     status = inb(io_base + ATA_STATUS);
+    // }
+    uint32_t cpid = api(MODULE_API_GET_CPID);
+    api(MODULE_API_PRINT, MODULE_NAME, "Cpid: %x", cpid);
+    api(MODULE_API_BLOCK_PID, cpid);
+    transferring_pid = cpid;
+    if(!is_interrupt){
+        asm("int $32\n");
     }
-    outb(bm_base, 0x00);
     
     return 0;
 }
@@ -355,15 +365,25 @@ int ata_read(vfile_t *file, uint8_t *ptr, uint32_t offset, uint32_t count) {
     // }
     
     // while (transferring_disk_index != -1);
-    while(ATA_BSY(status)){
-        status = inb(io_base + ATA_STATUS);
+    // while(ATA_BSY(status)){
+    //     status = inb(io_base + ATA_STATUS);
+    // }
+    // outb(bm_base, 0x00);
+    uint32_t cpid = api(MODULE_API_GET_CPID);
+    api(MODULE_API_PRINT, MODULE_NAME, "Cpid: %x", cpid);
+    api(MODULE_API_BLOCK_PID, cpid);
+    transferring_pid = cpid;
+    if(!is_interrupt){
+        asm("int $32\n");
     }
-    outb(bm_base, 0x00);
     
     return 0;
 }
 
 cpu_registers_t *int_handler(cpu_registers_t * regs){
+    if(transferring_disk_index == -1){
+        return regs;
+    }
     drive_t drive = drives[transferring_disk_index];
     uint16_t dmabar = drive.BARs[4] & (uint32_t)(~3);
     uint32_t status = inb(dmabar + 2);
@@ -380,6 +400,9 @@ cpu_registers_t *int_handler(cpu_registers_t * regs){
         return regs;
     }
     transferring_disk_index = -1;
+    outb(drives[transferring_disk_index].BARs[4] & ~3, 0x00);
+    api(MODULE_API_UNBLOCK_PID, transferring_pid);
+    transferring_pid = 0;
     return regs;
 }
 
@@ -480,18 +503,30 @@ uint8_t ata_identify(uint32_t index, uint16_t disk){
     itoa(ata_drives, fname + strlen(fname), 10);
     vfile_t *new_file = fcreate(api, fname, VFILE_DEVICE, ata_write, ata_read);
     new_file->mount_id = index;
-    free(api, fname);
+    // free(api, fname);
     return 1;
 }
 
 void ide_init(uint32_t BARS[5]){
     uint32_t primary_index = find_free_drive();
+    if(primary_index == -1){
+        return;
+    }
     drives[primary_index].type = TYPE_TMP;
     uint32_t primary_slave_index = find_free_drive();
+    if(primary_slave_index == -1){
+        return;
+    }
     drives[primary_slave_index].type = TYPE_TMP;
     uint32_t secondary_index = find_free_drive();
+    if(secondary_index == -1){
+        return;
+    }
     drives[secondary_index].type = TYPE_TMP;
     uint32_t secondary_slave_index = find_free_drive();
+    if(secondary_slave_index == -1){
+        return;
+    }
     drives[secondary_slave_index].type = TYPE_TMP;
     for(int i = 0; i < 2; i++){
         drives[primary_index].BARs[i] = BARS[i];

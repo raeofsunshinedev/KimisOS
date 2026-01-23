@@ -128,6 +128,18 @@ void kill(uint32_t pid){
     processes[pid].page_dir = 0;
     remove_process_queue(pid);
 }
+
+void set_pid_blocked(uint32_t pid){
+    processes[pid].flags.blocked = 1;
+    remove_process_queue(pid);
+}
+void set_pid_unblocked(uint32_t pid){
+    processes[pid].flags.blocked = 0;
+    add_process_queue(pid);
+}
+uint32_t get_current_pid(){
+    return current_pid;
+}
 uint32_t thread_start(void (*function)()){
     cpu_registers_t regs = {0};
     regs.cs = 0x10;

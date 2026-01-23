@@ -3,6 +3,7 @@
 #include "elf.h"
 #include "vfs.h"
 #include "../shared/memory.h"
+#include "scheduler.h"
 #include <stdarg.h>
 
 #define MODULE_NAME "MLOADER"
@@ -23,7 +24,7 @@ uint32_t module_api(uint32_t func, ...){
             }
             uint32_t tmp = pm_alloc();
             (structure->key) = (modules->size ^ 190507) + tmp << 12 ^ 4405648937 ^ 8592807313 >> 5;
-            structure->key & 0xffffff00 | modules->size;
+            structure->key &= 0xffffff00 | modules->size;
             vector_push(modules, structure);
             pm_free(tmp);
             return_value = 0;
@@ -137,6 +138,20 @@ uint32_t module_api(uint32_t func, ...){
                 }
                 return_value = -1;
             }
+            break;
+        case MODULE_API_BLOCK_PID:
+            uint32_t pid = va_arg(vars, uint32_t);
+            set_pid_blocked(pid);
+            break;
+        case MODULE_API_UNBLOCK_PID:
+            pid = va_arg(vars, uint32_t);
+            set_pid_unblocked(pid);
+            break;
+        case MODULE_API_GET_CPID:
+            return_value = get_current_pid();
+            break;
+        case MODULE_API_IS_INTERRUPT:
+            return get_in_interrupt();
             break;
     }
     va_end(vars);
