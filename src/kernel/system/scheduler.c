@@ -73,6 +73,7 @@ void remove_process_queue(uint32_t pid){
     process_queue[old_index] = process_queue[last_queue_index];
     process_queue[last_queue_index] = 0;
     queue_length--;
+    current_queue_index--;
 }
 
 uint32_t spawn_new_process(cpu_registers_t defaultregs, char **argv, uint32_t argc, void *cr3){
