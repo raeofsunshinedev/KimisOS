@@ -140,7 +140,7 @@ uint32_t volatile transferring_disk_index = -1;
 uint32_t expected_ints = 0;
 uint32_t recieved_ints = 0;
 uint32_t volatile transferring_pid = 0;
-// uint8_t volatile locked = 0;
+uint8_t volatile locked = 0;
 
 typedef struct drive_desc{
     uint32_t BARs[8];
@@ -194,7 +194,7 @@ uint32_t find_free_drive(){
 
 int ata_write(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
     if (count == 0) return -1;
-    while(transferring_disk_index != -1);
+    // while(transferring_disk_index != -1);
     drive_t drive = drives[file->mount_id];
     uint16_t io_base = drive.BARs[0] &0xfffe;
     uint16_t ctrl_base = drive.BARs[1] &0xfffe;
@@ -299,9 +299,7 @@ int ata_read(vfile_t *file, uint8_t *ptr, uint32_t offset, uint32_t count) {
     uint32_t pages = (count + 4095) / 4096;
     
     // api(MODULE_API_PRINT, MODULE_NAME, "pid: %x, index: %x\n", transferring_pid, transferring_disk_index);
-    // while(locked);
-    while(transferring_disk_index != -1);
-    // locked = 1;
+    // while(transferring_disk_index != -1);
     uint32_t sector_count = pages*8;
     // api(MODULE_API_PRINT, MODULE_NAME, "pages: %x, scount: %x\n", pages, sector_count);
     if (sector_count == 0) return -1;
