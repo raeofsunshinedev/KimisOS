@@ -89,7 +89,7 @@ inline void *free(KOS_MAPI_FP api, void *ptr){
     api(MODULE_API_FREE, ptr);
     return 0;
 }
-inline vfile_t *fopen(KOS_MAPI_FP api, char *filename){
+inline vfile_t *fget_file(KOS_MAPI_FP api, char *filename){
     // vfile_t *file = malloc(api, 1);
     return (void *)api(MODULE_API_OPEN, filename);
 }

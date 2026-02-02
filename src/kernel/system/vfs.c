@@ -5,6 +5,8 @@
 #define MODULE_NAME "KVFS"
 vfile_t root_dir = {"/", VFILE_DIRECTORY};
 
+// !TODO: Modify code to become thread-safe
+
 struct mount_handler{
     int (*callback)(vfile_t *device, MOUNT_OPERATION op, ...);
     uint32_t key;

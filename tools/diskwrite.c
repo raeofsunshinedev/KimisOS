@@ -309,7 +309,7 @@ int main(int argc, char **argv){
             printf(".%s\n", root[index].ext);
             index++;
         }
-        // free(root);
+        free(root);
     }
     fat_write_back(output_file, &info);
     verbose && printf("Finished. Exiting...\n");

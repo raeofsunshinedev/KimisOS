@@ -584,7 +584,7 @@ void init(KOS_MAPI_FP module_api, uint32_t api_version){
     api(MODULE_API_ADDINT, 15, module_data.key, int_handler);
     api(MODULE_API_ADDINT, 14, module_data.key, int_handler);
     // api(MODULE_API_ADDINT, 0, module_data.key, int_handler);
-    vfile_t *pci_drive_dir = fopen(api, "/dev/pci/disk/");
+    vfile_t *pci_drive_dir = fget_file(api, "/dev/pci/disk/");
     vfile_t **dir_data = (pci_drive_dir->access.data.ptr);
     for(uint32_t i = 0; dir_data[i]; i++){
         vfile_t *current_file = dir_data[i];

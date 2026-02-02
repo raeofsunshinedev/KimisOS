@@ -38,7 +38,7 @@ int mount(vfile_t *file, char *buffer, uint32_t offset, uint32_t count){
         destination_buffer[i] = buffer[i];
     }
     destination_buffer[i] = 0;
-    vfile_t *src = fopen(api, filename_buffer);
+    vfile_t *src = fget_file(api, filename_buffer);
     if(!src){
         puts(api, MODULE_NAME, "src does not exist\n");
     }
