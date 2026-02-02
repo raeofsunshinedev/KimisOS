@@ -174,12 +174,10 @@ void *get_new_page(uint32_t flags){
     map((void *)paddr+(i*4096), (void *)paddr, flags);
 }
 void *kmalloc(uint32_t size_pgs){
-    // static uint8_t fake = 0;
     uint32_t i = 0xc0000000 >> 12; //4mb/4096 (start search at 1mb line)
     while(i < (1 << 22)){
         uint8_t found = 1;
         for(uint32_t j = 0; j < size_pgs; j++){
-            // printf("found at %x, %x\n", (i + j) << 12, get_paddr((void*)((i + j) << 12)));
             if(get_pflags((void *)((i + j) << 12))){
                 found = 0;
                 break;
@@ -192,13 +190,8 @@ void *kmalloc(uint32_t size_pgs){
         for(uint32_t j = 0; j < size_pgs; j++){
             uint32_t flags = PT_PRESENT | PT_SYS | (PT_LINK_L * (j != 0)) | (PT_LINK_N * (j < (size_pgs - 1)) | PT_PCD);
             uint32_t physaddr = pm_alloc();
-            // if(j == 0) printf("%x", physaddr);
-            // printf("Mapping %x to %x\n", (i + j) << 12, physaddr);
-            // if(fake) return 0;
             map((void *)((i + j) << 12), (void*)physaddr, flags);
         }
-        // fake = !fake;
-        // for(;;);
         return (void*)(i << 12);
     }
     return 0;
@@ -208,7 +201,6 @@ void *kmalloc_page_paddr(uint32_t paddr, uint32_t size_pgs){
     while(i < (1 << 22)){
         uint8_t found = 1;
         for(uint32_t j = 0; j < size_pgs; j++){
-            // printf("found at %x, %x\n", (i + j) << 12, get_paddr((void*)((i + j) << 12)));
             if(get_pflags((void *)((i + j) << 12))){
                 found = 0;
                 break;
@@ -221,13 +213,9 @@ void *kmalloc_page_paddr(uint32_t paddr, uint32_t size_pgs){
         for(uint32_t j = 0; j < size_pgs; j++){
             uint32_t flags = PT_PRESENT | PT_SYS | (PT_LINK_L * (j != 0)) | (PT_LINK_N * (j < (size_pgs - 1)) | PT_PCD);
             uint32_t physaddr = paddr + j * 4096;
-            // if(j == 0) printf("%x", physaddr);
-            // printf("Mapping %x to %x\n", (i + j) << 12, physaddr);
-            // if(fake) return 0;
+
             map((void *)((i + j) << 12), (void*)physaddr, flags);
         }
-        // fake = !fake;
-        // for(;;);
         return (void*)(i << 12);
     }
 }

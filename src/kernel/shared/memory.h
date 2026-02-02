@@ -86,3 +86,4 @@ int pm_init(kernel_info_t *kernel_info);
 
 void *kmalloc(uint32_t size_pgs);//allocates in multiples of 4096
 void *kfree(void *vaddr);
+void *kmalloc_page_paddr(uint32_t paddr, uint32_t size_pgs);
