@@ -49,7 +49,7 @@ void initrc_read(vfile_t *file){
             i+=j;
             module_name[j] = 0;
             // printf("%s\n", module_name);
-            vfile_t *module = fopen(module_name);
+            vfile_t *module = fget_file(module_name);
             if(!module){
                 printf("Error: Could not find module in Initrc.conf: %s\n", module_name);
                 continue;

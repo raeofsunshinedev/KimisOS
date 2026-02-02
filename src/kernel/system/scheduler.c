@@ -105,7 +105,7 @@ void exec(char *filename, char **argv){
     //a new schedulable entity
 }
 void kill(uint32_t pid){
-    void *pd = processes[pid].page_dir;
+    uint32_t pd = (uint32_t)processes[pid].page_dir;
     // uint32_t *pd_ptr = kmalloc(1);
     // uint32_t *pt_ptr = kmalloc(1);
     // kfree(pt_ptr);
@@ -114,7 +114,7 @@ void kill(uint32_t pid){
     uint32_t *pd_ptr = kmalloc_page_paddr(pd, 1);
     for(uint32_t i = 0; i < 1024; i++){
         // map(pt_ptr, (void *)pd_ptr[i], PT_PRESENT);
-        uint32_t *pt_ptr = kmalloc_page_paddr((void *)pd_ptr[i], 1);
+        uint32_t *pt_ptr = kmalloc_page_paddr(pd_ptr[i], 1);
         for(uint32_t j = 0; j < 1024; j++){
             uint32_t pt_paddr = pt_ptr[j] & ~(0xfff);
             pm_free(pt_paddr);

@@ -139,12 +139,14 @@ uint32_t read_cluster(fat_info *info, uint32_t cluster, buffer_t buffer, size_t 
 
 //write size bytes to file from buffer. no value may be zero or null. If file is null, will write to root directory
 int write_file(fat_info *info, file_t *file, buffer_t buffer, size_t size, FILE *disk){
+    uint32_t was_root = 0;
     if(!file){
-        file_t root_file = {0};
-        root_file.start_cluster_high = info->bpb.root_dir_cluster>>16;
-        root_file.start_cluster_low = info->bpb.root_dir_cluster&0xffff;
+        was_root = 1;
+        file_t *root_file = malloc(sizeof(file_t));
+        root_file->start_cluster_low = info->bpb.root_dir_cluster&0xffff;
+        root_file->start_cluster_high = info->bpb.root_dir_cluster>>16;
         // printf("Rootdirwrite: %d", root_file.start_cluster_high << 16 | root_file.start_cluster_low);
-        file = &root_file;
+        file = root_file;
     }
     uint32_t first_cluster = file->start_cluster_low | (file->start_cluster_high << 16);
     uint32_t clusters  = (size / (info->bpb.bytes_per_sector * info->bpb.sectors_per_cluster )) + 1;
@@ -165,6 +167,10 @@ int write_file(fat_info *info, file_t *file, buffer_t buffer, size_t size, FILE 
         cluster = next_cluster;
     }
     write_cluster_value(info, -1, cluster);
+    if(was_root){
+        free(file);
+    }
+    free(new_buffer);
     return size * info->bpb.bytes_per_sector * info->bpb.sectors_per_cluster;
 }
 
@@ -201,6 +207,7 @@ int create_file(char *path, fat_info *info, FILE *file, FILE *disk){
     info->bpb.root_dir_entries++;
     write_file(info, &root_files[index], buffer, size, disk);
     write_file(info, 0, (buffer_t)root_files, (info->bpb.root_dir_entries * sizeof(file_t)), disk);
+    free(buffer);
 }
 
 int fat_write_back(FILE *file, fat_info *info){
@@ -235,11 +242,12 @@ int detect_repair_fs(FILE *file, fat_info *info){
         info->file_table[1] = -1;
         info->file_table[info->bpb.root_dir_cluster] = -1;
     }
+    free(boot_sector);
 }
 
 int main(int argc, char **argv){
     char list_root_dir = 0;
-    char **files = malloc(512);
+    char **files = malloc(512*sizeof(char*));
     int filec = 0;
     FILE *output_file = 0;
     
@@ -264,7 +272,9 @@ int main(int argc, char **argv){
             }
             verbose && printf("OF: %s\n", argv[i]);
             output_file = fopen(argv[i], "r+");
-            if(!output_file) printf("Error opening file");
+            if(!output_file){
+                printf("Error opening file");
+            }
             continue;
         }
         if(!strcmp(argv[i], "-v")){
@@ -299,8 +309,12 @@ int main(int argc, char **argv){
             printf(".%s\n", root[index].ext);
             index++;
         }
+        // free(root);
     }
     fat_write_back(output_file, &info);
     verbose && printf("Finished. Exiting...\n");
+    fclose(output_file);
+    free(info.file_table);
+    free(files);
     return 0;
 }

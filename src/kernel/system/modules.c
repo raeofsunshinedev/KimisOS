@@ -92,7 +92,7 @@ uint32_t module_api(uint32_t func, ...){
             break;
         case MODULE_API_OPEN:
             name = va_arg(vars, char *);
-            return_value = (uint32_t)fopen(name);
+            return_value = (uint32_t)fget_file(name);
             break;
         case MODULE_API_MAP:
             return_value = 0;

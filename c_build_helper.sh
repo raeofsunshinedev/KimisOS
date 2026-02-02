@@ -4,7 +4,7 @@ LDFLAGS_i386="-Ttext 0xc0000000 --oformat binary -melf_i386"
 cd src/kernel/
 gcc kmain.c $CFLAGS -o ../../bin/kernel/kmain.o
 for d in ./*/; do
-    if [[ "$d" != "./obj/" ]]; then
+    if [ "$d" != "./obj/" ]; then
         echo "\033[1;32mCompiling files in $d\033[0m"
         for f in $d*.c; do
             echo -e "\033[1;36mfile: $f\033[0m"

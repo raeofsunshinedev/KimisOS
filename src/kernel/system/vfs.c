@@ -260,7 +260,7 @@ vfile_t *search_dir(char *name, vfile_t dir){
     return 0;
 }
 
-vfile_t *fopen(char *name){
+vfile_t *fget_file(char *name){
     if(name[0] == '/'){
         if(strlen(name) == 1){
             return &root_dir;
