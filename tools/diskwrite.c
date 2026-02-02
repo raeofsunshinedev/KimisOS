@@ -86,6 +86,9 @@ int verbose = 0;
 int read_sector(FILE *file, uint32_t sector_start, uint32_t count, buffer_t buf){
     verbose && printf("Attempting to read bytes 0x%x - 0x%x\n", sector_start * 512, sector_start * 512  + count * 512);
     // rewind(file);
+    if(!file){
+        return 0;
+    }
     int result = fseek(file, sector_start * 512, SEEK_SET);
     if(result){
         return result;
@@ -99,6 +102,9 @@ int read_sector(FILE *file, uint32_t sector_start, uint32_t count, buffer_t buf)
 int write_sector(FILE *file, uint32_t sector_start, uint32_t count, buffer_t buf){
     // printf("pre seek\n");
     // rewind(file);
+    if(!file){
+        return 0;
+    }
     int result = fseek(file, sector_start * 512, SEEK_SET);
     if(result){
         printf("Error during seek\n");
@@ -121,6 +127,7 @@ uint32_t find_free_cluster(fat_info *info){
         // verbose && printf("Free cluster found: %d | %d\n", i, info->file_table[i]);
         return i;
     }
+    return -1;
 }
 
 void write_cluster_value(fat_info *info, uint32_t value, uint32_t cluster){
@@ -160,6 +167,12 @@ int write_file(fat_info *info, file_t *file, buffer_t buffer, size_t size, FILE 
         uint32_t next_cluster = info->file_table[cluster];
         if(next_cluster == -1){
             next_cluster = find_free_cluster(info);
+            if(next_cluster){
+                if(was_root){
+                    free(file);
+                }
+                return 0;
+            }
             write_cluster_value(info, next_cluster, cluster);
             write_cluster_value(info, -1, next_cluster);
         }
@@ -198,6 +211,9 @@ int create_file(char *path, fat_info *info, FILE *file, FILE *disk){
     uint32_t size = ftell(file);
     root_files[index].size_bytes = size;
     uint32_t first_cluster = find_free_cluster(info);
+    if(first_cluster == -1){
+        return -1;
+    }
     info->file_table[first_cluster] = -1;
     root_files[index].start_cluster_low = first_cluster & 0xffff;
     root_files[index].start_cluster_high = first_cluster >> 16;
@@ -208,6 +224,7 @@ int create_file(char *path, fat_info *info, FILE *file, FILE *disk){
     write_file(info, &root_files[index], buffer, size, disk);
     write_file(info, 0, (buffer_t)root_files, (info->bpb.root_dir_entries * sizeof(file_t)), disk);
     free(buffer);
+    return 0;
 }
 
 int fat_write_back(FILE *file, fat_info *info){
@@ -215,6 +232,7 @@ int fat_write_back(FILE *file, fat_info *info){
     if(res = write_sector(file, info->bpb.reserved_sectors, info->bpb.sectors_per_fat * info->bpb.fat_count, (buffer_t)info->file_table) == 0){
         verbose && printf("Error during write: %d\n", res);
     }
+    return res;
 }
 
 int detect_repair_fs(FILE *file, fat_info *info){
@@ -243,6 +261,7 @@ int detect_repair_fs(FILE *file, fat_info *info){
         info->file_table[info->bpb.root_dir_cluster] = -1;
     }
     free(boot_sector);
+    return 0;
 }
 
 int main(int argc, char **argv){
