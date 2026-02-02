@@ -201,6 +201,7 @@ void *kmalloc(uint32_t size_pgs){
         // for(;;);
         return (void*)(i << 12);
     }
+    return 0;
 }
 void *kmalloc_page_paddr(uint32_t paddr, uint32_t size_pgs){
     uint32_t i = 0xc0000000 >> 12; //4mb/4096 (start search at 1mb line)
@@ -231,6 +232,9 @@ void *kmalloc_page_paddr(uint32_t paddr, uint32_t size_pgs){
     }
 }
 void *kfree(void *vaddr){
+    if(!get_pflags(vaddr)){
+        return 0;
+    }
     uint32_t addr = (uint32_t)vaddr;
     addr &= ~0xfff;
     while(get_pflags((void *)addr)&PT_LINK_L) addr -= 0x1000;
