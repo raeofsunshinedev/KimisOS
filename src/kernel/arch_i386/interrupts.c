@@ -165,42 +165,42 @@ void idt_load(){
     //     set_idt_entry(i, (_isr0 + ((_isr1 - _isr0) * i)), IDT_GATE_INT, 0x10);
     //     // printf("int %d: address: %x\n", i, _isr0 + (_isr1 - _isr0) * i);
     // }
-    set_idt_entry(0, _isr0, IDT_GATE_INT, 0x10);
-    set_idt_entry(1, _isr1, IDT_GATE_INT, 0x10);
-    set_idt_entry(2, _isr2, IDT_GATE_INT, 0x10);
-    set_idt_entry(3, _isr3, IDT_GATE_INT, 0x10);
-    set_idt_entry(4, _isr4, IDT_GATE_INT, 0x10);
-    set_idt_entry(5, _isr5, IDT_GATE_INT, 0x10);
-    set_idt_entry(6, _isr6, IDT_GATE_INT, 0x10);
-    set_idt_entry(7, _isr7, IDT_GATE_INT, 0x10);
-    set_idt_entry(8, _isr8, IDT_GATE_INT, 0x10);
-    set_idt_entry(9, _isr9, IDT_GATE_INT, 0x10);
-    set_idt_entry(10, _isr10, IDT_GATE_INT, 0x10);
-    set_idt_entry(11, _isr11, IDT_GATE_INT, 0x10);
-    set_idt_entry(12, _isr12, IDT_GATE_INT, 0x10);
-    set_idt_entry(13, _isr13, IDT_GATE_INT, 0x10);
-    set_idt_entry(14, _isr14, IDT_GATE_INT, 0x10);
-    set_idt_entry(15, _isr15, IDT_GATE_INT, 0x10);
-    set_idt_entry(16, _isr16, IDT_GATE_INT, 0x10);
-    set_idt_entry(17, _isr17, IDT_GATE_INT, 0x10);
-    set_idt_entry(18, _isr18, IDT_GATE_INT, 0x10);
-    set_idt_entry(19, _isr19, IDT_GATE_INT, 0x10);
-    set_idt_entry(20, _isr20, IDT_GATE_INT, 0x10);
-    set_idt_entry(21, _isr21, IDT_GATE_INT, 0x10);
-    set_idt_entry(22, _isr22, IDT_GATE_INT, 0x10);
-    set_idt_entry(23, _isr23, IDT_GATE_INT, 0x10);
-    set_idt_entry(24, _isr24, IDT_GATE_INT, 0x10);
-    set_idt_entry(25, _isr25, IDT_GATE_INT, 0x10);
-    set_idt_entry(26, _isr26, IDT_GATE_INT, 0x10);
-    set_idt_entry(27, _isr27, IDT_GATE_INT, 0x10);
-    set_idt_entry(28, _isr28, IDT_GATE_INT, 0x10);
-    set_idt_entry(29, _isr29, IDT_GATE_INT, 0x10);
-    set_idt_entry(30, _isr30, IDT_GATE_INT, 0x10);
-    set_idt_entry(31, _isr31, IDT_GATE_INT, 0x10);
+    set_idt_entry(0, &_isr0, IDT_GATE_INT, 0x10);
+    set_idt_entry(1, &_isr1, IDT_GATE_INT, 0x10);
+    set_idt_entry(2, &_isr2, IDT_GATE_INT, 0x10);
+    set_idt_entry(3, &_isr3, IDT_GATE_INT, 0x10);
+    set_idt_entry(4, &_isr4, IDT_GATE_INT, 0x10);
+    set_idt_entry(5, &_isr5, IDT_GATE_INT, 0x10);
+    set_idt_entry(6, &_isr6, IDT_GATE_INT, 0x10);
+    set_idt_entry(7, &_isr7, IDT_GATE_INT, 0x10);
+    set_idt_entry(8, &_isr8, IDT_GATE_INT, 0x10);
+    set_idt_entry(9, &_isr9, IDT_GATE_INT, 0x10);
+    set_idt_entry(10, &_isr10, IDT_GATE_INT, 0x10);
+    set_idt_entry(11, &_isr11, IDT_GATE_INT, 0x10);
+    set_idt_entry(12, &_isr12, IDT_GATE_INT, 0x10);
+    set_idt_entry(13, &_isr13, IDT_GATE_INT, 0x10);
+    set_idt_entry(14, &_isr14, IDT_GATE_INT, 0x10);
+    set_idt_entry(15, &_isr15, IDT_GATE_INT, 0x10);
+    set_idt_entry(16, &_isr16, IDT_GATE_INT, 0x10);
+    set_idt_entry(17, &_isr17, IDT_GATE_INT, 0x10);
+    set_idt_entry(18, &_isr18, IDT_GATE_INT, 0x10);
+    set_idt_entry(19, &_isr19, IDT_GATE_INT, 0x10);
+    set_idt_entry(20, &_isr20, IDT_GATE_INT, 0x10);
+    set_idt_entry(21, &_isr21, IDT_GATE_INT, 0x10);
+    set_idt_entry(22, &_isr22, IDT_GATE_INT, 0x10);
+    set_idt_entry(23, &_isr23, IDT_GATE_INT, 0x10);
+    set_idt_entry(24, &_isr24, IDT_GATE_INT, 0x10);
+    set_idt_entry(25, &_isr25, IDT_GATE_INT, 0x10);
+    set_idt_entry(26, &_isr26, IDT_GATE_INT, 0x10);
+    set_idt_entry(27, &_isr27, IDT_GATE_INT, 0x10);
+    set_idt_entry(28, &_isr28, IDT_GATE_INT, 0x10);
+    set_idt_entry(29, &_isr29, IDT_GATE_INT, 0x10);
+    set_idt_entry(30, &_isr30, IDT_GATE_INT, 0x10);
+    set_idt_entry(31, &_isr31, IDT_GATE_INT, 0x10);
 
     // printf("last ")
     for(uint32_t i = 0; i < 16; i++){
-        set_idt_entry(i + 32, (_irq0 + ((_irq1 - _irq0) * i)), IDT_GATE_INT, 0x10);
+        set_idt_entry(i + 32, (&_irq0 + ((&_irq1 - &_irq0) * i)), IDT_GATE_INT, 0x10);
         // printf("int %d: address: %x\n", i + 32, _irq0 + (_irq1 - _irq0) * i);
     }
     
