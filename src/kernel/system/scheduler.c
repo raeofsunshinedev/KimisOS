@@ -43,7 +43,7 @@ void remove_process_queue(uint32_t pid){
             process_queue[i] = 0;
         }
     }
-    if(old_index == last_queue_index || old_index < queue_length || old_index < PROCESS_COUNT){
+    if(old_index == last_queue_index || old_index > queue_length || old_index > PROCESS_COUNT){
         asm("sti");
         return;
     }
