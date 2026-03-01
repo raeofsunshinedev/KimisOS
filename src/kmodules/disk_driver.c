@@ -510,8 +510,8 @@ uint8_t ata_identify(uint32_t index, uint16_t disk){
     itoa(ata_drives, fname + strlen(fname), 10);
     vfile_t *new_file = fcreate(api, fname, VFILE_DEVICE, ata_write, ata_read);
     new_file->mount_id = index;
-    // free(api, fname);
-    return 1;
+    puts(api, "KIDM", "Valid Drive!\n");
+    return 0;
 }
 
 void ide_init(uint32_t BARS[5]){
@@ -521,49 +521,46 @@ void ide_init(uint32_t BARS[5]){
     }
     drives[primary_index].type = TYPE_TMP;
     uint32_t primary_slave_index = find_free_drive();
-    if(primary_slave_index == -1){
-        return;
+    if(primary_slave_index != -1){
+        drives[primary_slave_index].type = TYPE_TMP;
     }
-    drives[primary_slave_index].type = TYPE_TMP;
-    uint32_t secondary_index = find_free_drive();
-    if(secondary_index == -1){
-        return;
-    }
-    drives[secondary_index].type = TYPE_TMP;
-    uint32_t secondary_slave_index = find_free_drive();
-    if(secondary_slave_index == -1){
-        return;
-    }
-    drives[secondary_slave_index].type = TYPE_TMP;
+    // uint32_t secondary_index = find_free_drive();
+    // if(secondary_index != -1){
+    //     drives[secondary_index].type = TYPE_TMP;
+    // }
+    // uint32_t secondary_slave_index = find_free_drive();
+    // if(secondary_slave_index != -1){
+    //     drives[secondary_slave_index].type = TYPE_TMP;
+    // }
     for(int i = 0; i < 2; i++){
         drives[primary_index].BARs[i] = BARS[i];
         drives[primary_slave_index].BARs[i] = BARS[i];
-        drives[secondary_index].BARs[i] = BARS[i+2];
-        drives[secondary_slave_index].BARs[i] = BARS[i+2];
+        // drives[secondary_index].BARs[i] = BARS[i+2];
+        // drives[secondary_slave_index].BARs[i] = BARS[i+2];
     }
     drives[primary_index].BARs[4] = BARS[4];
     drives[primary_slave_index].BARs[4] = BARS[4];
     drives[primary_slave_index].flags.slave = 1;
-    drives[secondary_index].BARs[4] = BARS[4];
-    drives[secondary_slave_index].BARs[4] = BARS[4];
-    drives[secondary_slave_index].flags.slave = 1;
+    // drives[secondary_index].BARs[4] = BARS[4];
+    // drives[secondary_slave_index].BARs[4] = BARS[4];
+    // drives[secondary_slave_index].flags.slave = 1;
     //now call ATA IDENTIFY
     uint8_t master_status = ata_identify(primary_index, ATA_MASTER);
     uint8_t slave_status = ata_identify(primary_slave_index, ATA_SLAVE);
-    if(!master_status){
+    if(master_status == -1){
         drives[primary_index].type = TYPE_NULL;
     }
-    if(!slave_status){
+    if(slave_status == -1){
         drives[primary_slave_index].type = TYPE_NULL;
     }
-    master_status = ata_identify(secondary_index, ATA_MASTER);
-    slave_status = ata_identify(secondary_slave_index, ATA_SLAVE);
-    if(!master_status){
-        drives[secondary_index].type = TYPE_NULL;
-    }
-    if(!slave_status){
-        drives[secondary_slave_index].type = TYPE_NULL;
-    }
+    // master_status = ata_identify(secondary_index, ATA_MASTER);
+    // slave_status = ata_identify(secondary_slave_index, ATA_SLAVE);
+    // if(master_status == -1){
+    //     drives[secondary_index].type = TYPE_NULL;
+    // }
+    // if(slave_status == -1){
+    //     drives[secondary_slave_index].type = TYPE_NULL;
+    // }
     // outb(BARS[4] >> 1, 0x0);
     // int volatile tt = 0;
     // while(tt < 50000){
@@ -601,10 +598,10 @@ void init(KOS_MAPI_FP module_api, uint32_t api_version){
                 BARs[0] = (ATA_PRIMARY_BUS) | 1;
                 BARs[1] = (ATA_PRIMARY_BUS + 0x206) | 1;
             }
-            if(PCI_IDE_SECONDARY_NATIVE(~progif)){
-                BARs[2] = (ATA_SECONDARY_BUS) | 1;
-                BARs[3] = (ATA_SECONDARY_BUS + 0x206) | 1;
-            }
+            // if(PCI_IDE_SECONDARY_NATIVE(~progif)){
+            //     BARs[2] = (ATA_SECONDARY_BUS) | 1;
+            //     BARs[3] = (ATA_SECONDARY_BUS + 0x206) | 1;
+            // }
             ide_init(BARs);
         }
     }

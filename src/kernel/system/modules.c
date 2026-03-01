@@ -28,7 +28,7 @@ uint32_t module_api(uint32_t func, ...){
             vector_push(modules, structure);
             pm_free(tmp);
             return_value = 0;
-            printf("vector size -> %d", structure->key);
+            // printf("vector size -> %d", structure->key);
             break;
             case MODULE_API_ADDINT:
             uint32_t int_index = va_arg(vars, uint32_t);
