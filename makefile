@@ -19,7 +19,7 @@ all: bootloader tools kernel
 # 	sudo mkdir mount/sys # for system files
 # 	./diskwrite -v -o image.bin
 	# ./diskwrite -v -l kernel.elf idm.elf -o image.bin
-	qemu-system-i386 -hda image.bin -hdc test.bin --no-reboot --no-shutdown -m 32m -smp 2 -serial mon:stdio -D intlog.txt -d int
+	qemu-system-i386 -hda image.bin -hdb test.bin --no-reboot --no-shutdown -m 32m -smp 2 -serial mon:stdio -D intlog.txt -d int
 	sudo umount mount
 
 tools:

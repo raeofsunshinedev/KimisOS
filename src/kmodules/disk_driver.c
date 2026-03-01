@@ -142,6 +142,7 @@ uint32_t recieved_ints = 0;
 uint32_t volatile transferring_pid = 0;
 uint8_t volatile locked = 0;
 
+
 typedef struct drive_desc{
     uint32_t BARs[8];
     enum DRIVE_TYPE type;
@@ -293,6 +294,17 @@ int ata_read(vfile_t *file, uint8_t *ptr, uint32_t offset, uint32_t count) {
     uint16_t ctrl_base = drive.BARs[1] &0xfffe;
     uint16_t bm_base = drive.BARs[4] & ~3;
     
+    if(!is_interrupt(api)){
+        asm("cli");
+        while(locked){
+            asm("sti");
+            puts(api, "KIDM", "Locked\n");
+            asm("int $32");
+            asm("cli");
+        }
+        locked = 1;
+        asm("sti");
+    }
     
     PRD_T *prdt = drive.PRDT;
     api(MODULE_API_PRINT, MODULE_NAME, "%x, %x, %x, %x\n", io_base, ctrl_base, bm_base, api(MODULE_API_PADDR, prdt));
@@ -353,10 +365,14 @@ int ata_read(vfile_t *file, uint8_t *ptr, uint32_t offset, uint32_t count) {
     expected_ints = pages;
     recieved_ints = 0;
     
+    transferring_disk_index = file->mount_id;
+    uint32_t cpid = api(MODULE_API_GET_CPID);
+    // api(MODULE_API_PRINT, MODULE_NAME, "Cpid: %x", cpid);
+    api(MODULE_API_BLOCK_PID, cpid);
+    transferring_pid = cpid;
     
     outb(bm_base, 0x09); 
     
-    transferring_disk_index = file->mount_id;
     
     uint8_t status = inb(ctrl_base);
     uint8_t bm_status = inb(bm_base + 2);
@@ -371,10 +387,6 @@ int ata_read(vfile_t *file, uint8_t *ptr, uint32_t offset, uint32_t count) {
     //     status = inb(io_base + ATA_STATUS);
     // }
     // outb(bm_base, 0x00);
-    uint32_t cpid = api(MODULE_API_GET_CPID);
-    // api(MODULE_API_PRINT, MODULE_NAME, "Cpid: %x", cpid);
-    api(MODULE_API_BLOCK_PID, cpid);
-    transferring_pid = cpid;
     if(!is_interrupt){
         asm("int $32\n");
     }
