@@ -196,6 +196,17 @@ uint32_t find_free_drive(){
 int ata_write(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
     if (count == 0) return -1;
     // while(transferring_disk_index != -1);
+    if(!is_interrupt(api)){
+        asm("cli");
+        while(locked){
+            asm("sti");
+            puts(api, "KIDM", "Locked\n");
+            asm("int $32");
+            asm("cli");
+        }
+        locked = 1;
+        asm("sti");
+    }
     drive_t drive = drives[file->mount_id];
     uint16_t io_base = drive.BARs[0] &0xfffe;
     uint16_t ctrl_base = drive.BARs[1] &0xfffe;
@@ -258,6 +269,10 @@ int ata_write(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
     expected_ints = pages;
     recieved_ints = 0;
     
+    uint32_t cpid = api(MODULE_API_GET_CPID);
+    api(MODULE_API_PRINT, MODULE_NAME, "Cpid: %x", cpid);
+    api(MODULE_API_BLOCK_PID, cpid);
+    transferring_pid = cpid;
     
     outb(bm_base, 0x01); 
     
@@ -276,10 +291,6 @@ int ata_write(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
     // while(ATA_BSY(status)){
     //     status = inb(io_base + ATA_STATUS);
     // }
-    uint32_t cpid = api(MODULE_API_GET_CPID);
-    api(MODULE_API_PRINT, MODULE_NAME, "Cpid: %x", cpid);
-    api(MODULE_API_BLOCK_PID, cpid);
-    transferring_pid = cpid;
     if(!is_interrupt){
         asm("int $32\n");
     }
