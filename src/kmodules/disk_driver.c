@@ -196,17 +196,17 @@ uint32_t find_free_drive(){
 int ata_write(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
     if (count == 0) return -1;
     // while(transferring_disk_index != -1);
-    if(!is_interrupt(api)){
-        asm("cli");
-        while(locked){
-            asm("sti");
-            puts(api, "KIDM", "Locked\n");
-            asm("int $32");
-            asm("cli");
-        }
-        locked = 1;
+    // if(!is_interrupt(api)){
+    asm("cli");
+    while(locked){
         asm("sti");
+        // puts(api, "KIDM", "Locked\n");
+        asm("int $32");
+        asm("cli");
     }
+    locked = 1;
+    asm("sti");
+    // }
     drive_t drive = drives[file->mount_id];
     uint16_t io_base = drive.BARs[0] &0xfffe;
     uint16_t ctrl_base = drive.BARs[1] &0xfffe;
@@ -291,9 +291,9 @@ int ata_write(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
     // while(ATA_BSY(status)){
     //     status = inb(io_base + ATA_STATUS);
     // }
-    if(!is_interrupt){
-        asm("int $32\n");
-    }
+    // if(!is_interrupt){
+    asm("int $32\n");
+    // }
     
     return 0;
 }
@@ -305,17 +305,17 @@ int ata_read(vfile_t *file, uint8_t *ptr, uint32_t offset, uint32_t count) {
     uint16_t ctrl_base = drive.BARs[1] &0xfffe;
     uint16_t bm_base = drive.BARs[4] & ~3;
     
-    if(!is_interrupt(api)){
-        asm("cli");
-        while(locked){
-            asm("sti");
-            puts(api, "KIDM", "Locked\n");
-            asm("int $32");
-            asm("cli");
-        }
-        locked = 1;
+    // if(!is_interrupt(api)){
+    asm("cli");
+    while(locked){
         asm("sti");
+        // puts(api, "KIDM", "Locked\n");
+        asm("int $32");
+        asm("cli");
     }
+    locked = 1;
+    asm("sti");
+    // }
     
     PRD_T *prdt = drive.PRDT;
     api(MODULE_API_PRINT, MODULE_NAME, "%x, %x, %x, %x\n", io_base, ctrl_base, bm_base, api(MODULE_API_PADDR, prdt));
@@ -398,9 +398,9 @@ int ata_read(vfile_t *file, uint8_t *ptr, uint32_t offset, uint32_t count) {
     //     status = inb(io_base + ATA_STATUS);
     // }
     // outb(bm_base, 0x00);
-    if(!is_interrupt){
-        asm("int $32\n");
-    }
+    // if(!is_interrupt){
+    asm("int $32\n");
+    // }
     
     return 0;
 }

@@ -1,7 +1,12 @@
 #pragma once
 #include <stdint.h>
 #include "../shared/interrupts.h"
+
+#define DEFAULT_FD_MAX 1024
+#define ABSOLUT_FD_MAX 65536
+
 typedef struct{
+    
     char **argv;
     uint32_t argc;
     cpu_registers_t cpuregs;
@@ -14,6 +19,8 @@ typedef struct{
         uint8_t present :1;
         uint8_t ran     :1;
     }flags;
+    void **file_descriptors;
+    uint32_t max_descriptors;
     uint32_t exit_value;
     uint32_t thread_id;
     uint32_t parent;

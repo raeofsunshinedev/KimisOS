@@ -111,7 +111,8 @@ void _isr_handler(cpu_registers_t *regs){
 }
 
 cpu_registers_t *syscall(cpu_registers_t *regs){
-    
+    printf("Hello!\n");
+    return regs;
 }
 
 extern void panic_hold(cpu_registers_t *regs);
@@ -203,6 +204,7 @@ void idt_load(){
         set_idt_entry(i + 32, (&_irq0 + ((&_irq1 - &_irq0) * i)), IDT_GATE_INT, 0x10);
         // printf("int %d: address: %x\n", i + 32, _irq0 + (_irq1 - _irq0) * i);
     }
+    set_idt_entry(0x80, _syscall, IDT_GATE_INT, 0x10);
     
     idt_desc.pointer = (uint32_t)&idt_table;
     idt_desc.size = sizeof(idt_entry_t) * 256 - 1;

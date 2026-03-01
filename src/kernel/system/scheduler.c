@@ -10,6 +10,7 @@ uint32_t volatile active_processes;
 uint32_t volatile current_pid;
 uint32_t volatile queue_length;
 uint32_t volatile current_queue_index;
+
 void scheduler_init(){
     processes = kmalloc((PROCESS_COUNT * sizeof(process_t) + 4095) / 4096);
     for(uint32_t i = 0; i < PROCESS_COUNT; i++){
@@ -80,6 +81,7 @@ uint32_t spawn_new_process(cpu_registers_t defaultregs, char **argv, uint32_t ar
     // i += !active_processes;
     active_processes++;
     process_t new_proc = {0};
+    //TODO: make sure these are pushed in a way which is friendly for processes in a different virtual address space
     new_proc.argc = argc;
     new_proc.argv = argv;
     new_proc.page_dir = cr3;
@@ -89,6 +91,9 @@ uint32_t spawn_new_process(cpu_registers_t defaultregs, char **argv, uint32_t ar
     new_proc.flags.cpu_lvl = 1;
     new_proc.flags.priority = 0;
     new_proc.flags.system = processes[current_pid].flags.system;
+    //allocate space for DEFUALT_FD_MAX file descriptors
+    new_proc.file_descriptors = kmalloc((DEFAULT_FD_MAX * sizeof(void **) + 4095)/4096);
+    new_proc.max_descriptors = DEFAULT_FD_MAX;
     processes[i] = new_proc;
     add_process_queue(i);
     return i;
