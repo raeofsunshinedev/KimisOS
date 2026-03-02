@@ -140,8 +140,7 @@ uint32_t volatile transferring_disk_index = -1;
 uint32_t expected_ints = 0;
 uint32_t recieved_ints = 0;
 uint32_t volatile transferring_pid = 0;
-uint8_t volatile locked = 0;
-
+uint8_t volatile primary_ata_locked = 0;
 
 typedef struct drive_desc{
     uint32_t BARs[8];
@@ -158,6 +157,19 @@ typedef struct drive_desc{
 }drive_t;
 
 drive_t drives[32] = {0};
+
+//TODO: Make atomic for paralellism
+void ata_acquire_primary_lock(){
+    asm("cli");
+    while(primary_ata_locked){
+        asm("sti");
+        // puts(api, "KIDM", "Locked\n");
+        asm("int $32");
+        asm("cli");
+    }
+    primary_ata_locked = 1;
+    asm("sti");
+}
 
 //return 1 if ready, 0 if not
 int ata_ready(uint32_t BAR, uint32_t BAR2, uint8_t drive){
@@ -197,15 +209,7 @@ int ata_write(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
     if (count == 0) return -1;
     // while(transferring_disk_index != -1);
     // if(!is_interrupt(api)){
-    asm("cli");
-    while(locked){
-        asm("sti");
-        // puts(api, "KIDM", "Locked\n");
-        asm("int $32");
-        asm("cli");
-    }
-    locked = 1;
-    asm("sti");
+    ata_acquire_primary_lock();
     // }
     drive_t drive = drives[file->mount_id];
     uint16_t io_base = drive.BARs[0] &0xfffe;
@@ -305,17 +309,7 @@ int ata_read(vfile_t *file, uint8_t *ptr, uint32_t offset, uint32_t count) {
     uint16_t ctrl_base = drive.BARs[1] &0xfffe;
     uint16_t bm_base = drive.BARs[4] & ~3;
     
-    // if(!is_interrupt(api)){
-    asm("cli");
-    while(locked){
-        asm("sti");
-        // puts(api, "KIDM", "Locked\n");
-        asm("int $32");
-        asm("cli");
-    }
-    locked = 1;
-    asm("sti");
-    // }
+    ata_acquire_primary_lock();
     
     PRD_T *prdt = drive.PRDT;
     api(MODULE_API_PRINT, MODULE_NAME, "%x, %x, %x, %x\n", io_base, ctrl_base, bm_base, api(MODULE_API_PADDR, prdt));
@@ -432,7 +426,7 @@ cpu_registers_t *int_handler(cpu_registers_t * regs){
     transferring_disk_index = -1;
     api(MODULE_API_UNBLOCK_PID, transferring_pid);
     transferring_pid = 0;
-    locked = 0;
+    primary_ata_locked = 0;
     return regs;
 }
 
