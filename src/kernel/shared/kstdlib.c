@@ -85,6 +85,9 @@ void vector_push(vector_t *vector, void *new_element){
                 ((uint8_t *)(newptr))[i] = ((uint8_t *)vector->ptr)[i * vector->size];
             }
         }
+        void *tmp = vector->ptr;
+        vector->ptr = newptr;
+        kfree(tmp);
     }
     for(uint32_t i = 0; i < vector->sizeof_elements; i++){
         ((uint8_t *)(vector->ptr))[vector->size * vector->sizeof_elements + i] = ((uint8_t *)new_element)[i];

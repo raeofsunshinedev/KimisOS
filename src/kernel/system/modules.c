@@ -28,7 +28,6 @@ uint32_t module_api(uint32_t func, ...){
             vector_push(modules, structure);
             pm_free(tmp);
             return_value = 0;
-            // printf("Registered Key: %x", structure->key);
             break;
             case MODULE_API_ADDINT:
             uint32_t int_index = va_arg(vars, uint32_t);
@@ -39,12 +38,10 @@ uint32_t module_api(uint32_t func, ...){
                 return_value = -1;
                 break;
             }
-            // printf("installed %d", int_index);
             install_irq_handler(interrupt_handler, int_index);
             module_t *tmpmodule = vector_get(key & 0xff, modules);
             tmpmodule->interrupts |= 1 << int_index;
             return_value = 0;
-            // printf("Added key\n");
             break;
         case MODULE_API_DELINT:
             int_index = va_arg(vars, uint32_t);
@@ -61,7 +58,6 @@ uint32_t module_api(uint32_t func, ...){
             return_value = 0;
             break;
         case MODULE_API_PRINT:
-            // vmlog(MODULE_NAME, "Testing modules calling kernel functions\n", MLOG_PRINT, vars);
             char *name = va_arg(vars, char *);
             char *string = va_arg(vars, char *);
             vmlog(name, string, MLOG_PRINT, vars);
@@ -132,7 +128,6 @@ uint32_t module_api(uint32_t func, ...){
             for(int i = 0; i < modules->size; i++){
                 module_t* module = ((module_t *)vector_get(i, modules));
                 if(module->key == key){
-                    // printf("Adding message handler!!\n\n");
                     module->message_handler = handler;
                     return_value = 0;
                     break;
@@ -167,13 +162,9 @@ void dispatch_message(uint32_t message, ...){
     
     for(int i = 0; i < modules->size; i++){
         module_t *module = vector_get(i, modules);
-        // int32_t (*handler)(uint32_t, ...) = ((module_t *)(vector_get(i, modules)))->key;
-        // uint32_t key = ((module_t *)(vector_get(i, modules)))->key;
         uint32_t key = module->key;
         int32_t (*handler)(uint32_t, ...) = module->message_handler;
         if(!handler) continue;
-        // printf("Handler: %x, Key: %x\n", handler, key);
-        // for(;;);
         int32_t result = 0;
         
         vfile_t *srcfile;

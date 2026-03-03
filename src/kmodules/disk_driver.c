@@ -239,7 +239,9 @@ int ata_write(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
     // api(MODULE_API_PRINT, MODULE_NAME, "PRDT (Read back from busmaster): %x\n", test);
     outb(bm_base, 0x00);
     
-    while(!ata_ready(io_base, ctrl_base, drive.flags.slave << 4));
+    while(!ata_ready(io_base, ctrl_base, drive.flags.slave << 4)){
+        asm("int $32\n");
+    }
     uint64_t lba = offset >> 9;
     // uint64_t lba = 0;
     outb(io_base + ATA_DRIVE_HEAD, 0x40 | (drive.flags.slave << 4) | ((lba >> 24) & 0x0F));
@@ -287,6 +289,13 @@ int ata_write(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
     uint8_t bm_status = inb(bm_base + 2);
 
     asm("int $32\n");
+    
+    while(!ata_ready(io_base, ctrl_base, drive.flags.slave << 4)){
+        asm("int $32\n");
+    }
+    outb(io_base + ATA_DRIVE_HEAD, 0x40 | (drive.flags.slave << 4));
+    outb(io_base + ATA_COMMAND, ATA_CMD_CACHE_FLUSH_EXT);
+    
     // }
     
     return 0;
@@ -329,7 +338,9 @@ int ata_read(vfile_t *file, uint8_t *ptr, uint32_t offset, uint32_t count) {
     // api(MODULE_API_PRINT, MODULE_NAME, "PRDT (Read back from busmaster): %x\n", test);
     outb(bm_base, 0x08);
     
-    while(!ata_ready(io_base, ctrl_base, drive.flags.slave << 4));
+    while(!ata_ready(io_base, ctrl_base, drive.flags.slave << 4)){
+        asm("int $32\n");
+    }
     uint64_t lba = offset >> 9;
     // uint64_t lba = 0;
     outb(io_base + ATA_DRIVE_HEAD, 0x40 | (drive.flags.slave << 4) | ((lba >> 24) & 0x0F));
@@ -410,6 +421,9 @@ cpu_registers_t *int_handler(cpu_registers_t * regs){
     api(MODULE_API_UNBLOCK_PID, transferring_pid);
     transferring_pid = 0;
     primary_ata_locked = 0;
+    
+    
+    
     return regs;
 }
 
