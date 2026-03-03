@@ -24,11 +24,11 @@ uint32_t module_api(uint32_t func, ...){
             }
             uint32_t tmp = pm_alloc();
             (structure->key) = (modules->size ^ 190507) + tmp << 12 ^ 4405648937 ^ 8592807313 >> 5;
-            structure->key &= 0xffffff00 | modules->size;
+            structure->key &= (0xffffff00 | modules->size);
             vector_push(modules, structure);
             pm_free(tmp);
             return_value = 0;
-            // printf("vector size -> %d", structure->key);
+            // printf("Registered Key: %x", structure->key);
             break;
             case MODULE_API_ADDINT:
             uint32_t int_index = va_arg(vars, uint32_t);
@@ -132,6 +132,7 @@ uint32_t module_api(uint32_t func, ...){
             for(int i = 0; i < modules->size; i++){
                 module_t* module = ((module_t *)vector_get(i, modules));
                 if(module->key == key){
+                    // printf("Adding message handler!!\n\n");
                     module->message_handler = handler;
                     return_value = 0;
                     break;
@@ -158,9 +159,40 @@ uint32_t module_api(uint32_t func, ...){
     return return_value;
 }
 
+
+
 void dispatch_message(uint32_t message, ...){
     va_list args;
     va_start(args, message);
+    
+    for(int i = 0; i < modules->size; i++){
+        module_t *module = vector_get(i, modules);
+        // int32_t (*handler)(uint32_t, ...) = ((module_t *)(vector_get(i, modules)))->key;
+        // uint32_t key = ((module_t *)(vector_get(i, modules)))->key;
+        uint32_t key = module->key;
+        int32_t (*handler)(uint32_t, ...) = module->message_handler;
+        if(!handler) continue;
+        // printf("Handler: %x, Key: %x\n", handler, key);
+        // for(;;);
+        int32_t result = 0;
+        
+        vfile_t *srcfile;
+        char *destname;
+        uint32_t offset;
+        
+        switch(message){
+            case MESSAGE_MOUNT_FS:
+                srcfile = va_arg(args, vfile_t *);
+                destname = va_arg(args, char *);
+                offset = va_arg(args, uint32_t);
+                
+                result = handler(message, srcfile, destname, offset);
+                break;
+        }
+        if((int32_t) message > 0 && result){
+            break;
+        }
+    }
     
     va_end(args);
 }

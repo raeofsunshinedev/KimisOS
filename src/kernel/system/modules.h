@@ -38,14 +38,22 @@ enum MODULE_API_FUNCS{
     MODULE_API_IS_INTERRUPT,
 };
 
+enum MESSAGES{
+    MESSAGE_MOUNT_FS,
+    MESSAGE_UNMOUNT_FS,
+    MESSAGE_BROADCAST = 0x80000000, //placeholder
+};
+
+void dispatch_message(uint32_t message, ...);
+
 typedef struct module{
     void *init_entry;
     uint32_t id;
     char name[16];
-    uint8_t flags;
-    uint16_t interrupts;
+    // uint8_t flags;
+    uint32_t interrupts;
     uint32_t key;
-    void (*message_handler)(uint32_t message, ...);
+    int32_t (*message_handler)(uint32_t message, ...);
     void (*fini)(void);
 }module_t;
 

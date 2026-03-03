@@ -33,12 +33,12 @@ typedef struct module{
     void *init_entry;
     uint32_t id;
     char name[16];
-    uint8_t flags;
-    uint16_t interrupts;
+    // uint8_t flags;
+    uint32_t interrupts;
     uint32_t key;
-    void (*message_handler)(uint32_t message, ...);
+    int32_t (*message_handler)(uint32_t message, ...);
     void (*fini)(void);
-}module_t;
+} module_t;
 
 typedef struct cpu_registers{
     uint32_t gs, fs, es, ds;

@@ -114,7 +114,7 @@ typedef struct PRD{
 module_t module_data = {
     init,
     0xfae00000,
-    MODULE_NAME,
+    "KIDM    ",
     0,
     0,
     0,
@@ -163,9 +163,8 @@ void ata_acquire_primary_lock(){
     asm("cli");
     while(primary_ata_locked){
         asm("sti");
-        // puts(api, "KIDM", "Locked\n");
         asm("int $32");
-        asm("cli");
+        asm("cli\nmfence");
     }
     primary_ata_locked = 1;
     asm("sti");
@@ -207,8 +206,6 @@ uint32_t find_free_drive(){
 
 int ata_write(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
     if (count == 0) return -1;
-    // while(transferring_disk_index != -1);
-    // if(!is_interrupt(api)){
     ata_acquire_primary_lock();
     // }
     drive_t drive = drives[file->mount_id];
@@ -273,6 +270,8 @@ int ata_write(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
     expected_ints = pages;
     recieved_ints = 0;
     
+    asm("cli");
+    
     uint32_t cpid = api(MODULE_API_GET_CPID);
     api(MODULE_API_PRINT, MODULE_NAME, "Cpid: %x", cpid);
     api(MODULE_API_BLOCK_PID, cpid);
@@ -280,22 +279,13 @@ int ata_write(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
     
     outb(bm_base, 0x01); 
     
+    asm("sti");
+    
     transferring_disk_index = file->mount_id;
     
     uint8_t status = inb(ctrl_base);
     uint8_t bm_status = inb(bm_base + 2);
-    // api(MODULE_API_PRINT, MODULE_NAME, "Status: (ATA)%x, (Busmaster)%x\n", status, bm_status);
-    // if(ATA_ABRT(status)){
-    //     puts(api, MODULE_NAME, "Command aborted\n");
-    //     return -1;
-    // }
-    
-    // while (transferring_disk_index != -1);
-    //!TODO! SUPER IMPORTANT!!!! MARK CURRENT THREAD AS BLOCKED AND RE-ENTER AFTER IRQ IS FIRED
-    // while(ATA_BSY(status)){
-    //     status = inb(io_base + ATA_STATUS);
-    // }
-    // if(!is_interrupt){
+
     asm("int $32\n");
     // }
     
@@ -370,6 +360,7 @@ int ata_read(vfile_t *file, uint8_t *ptr, uint32_t offset, uint32_t count) {
     expected_ints = pages;
     recieved_ints = 0;
     
+    asm("cli");
     transferring_disk_index = file->mount_id;
     uint32_t cpid = api(MODULE_API_GET_CPID);
     // api(MODULE_API_PRINT, MODULE_NAME, "Cpid: %x", cpid);
@@ -377,7 +368,7 @@ int ata_read(vfile_t *file, uint8_t *ptr, uint32_t offset, uint32_t count) {
     transferring_pid = cpid;
     
     outb(bm_base, 0x09); 
-    
+    asm("sti");
     
     uint8_t status = inb(ctrl_base);
     uint8_t bm_status = inb(bm_base + 2);
@@ -386,15 +377,7 @@ int ata_read(vfile_t *file, uint8_t *ptr, uint32_t offset, uint32_t count) {
     //     puts(api, MODULE_NAME, "Command aborted\n");
     //     return -1;
     // }
-    
-    // while (transferring_disk_index != -1);
-    // while(ATA_BSY(status)){
-    //     status = inb(io_base + ATA_STATUS);
-    // }
-    // outb(bm_base, 0x00);
-    // if(!is_interrupt){
     asm("int $32\n");
-    // }
     
     return 0;
 }
@@ -595,6 +578,7 @@ void init(KOS_MAPI_FP module_api, uint32_t api_version){
         api(MODULE_API_PRINT, MODULE_NAME, "Failed to register module, exiting\n");
         return;
     }
+    api(MODULE_API_PRINT, MODULE_NAME, "Assigned Key: %x\n", module_data.key);
     api(MODULE_API_ADDINT, 15, module_data.key, int_handler);
     api(MODULE_API_ADDINT, 14, module_data.key, int_handler);
     // api(MODULE_API_ADDINT, 0, module_data.key, int_handler);

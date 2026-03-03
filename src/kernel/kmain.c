@@ -38,6 +38,7 @@ void sysinit(){
         mlog("KERNEL", "Filename: %s\n", MLOG_PRINT, dir_data[i]->name);
         vfs_detect_partitions(dir_data[i]);
     }
+    dispatch_message(0);
     printf("Bleh\n");
     //why did i stop working on this? what was wrong with this?
     for(;;);

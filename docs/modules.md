@@ -151,3 +151,29 @@ Arguments: `uint32_t key, void (*handler)(uint32_t message, ...)`
 Assigns and marks valid message handler to recieve messages from the kernel to kernel modules. Returns -1 if the key is invalid, otherwise, returns 0. No messages have been implemented, but a will update with a table of messages as necessary.
 
 If a message handler cannot handle a message, it is required that the message handler returns -1.
+
+#### MODULE_API_BLOCK_PID
+
+Arguments: `uint32_t pid`
+
+Sets the process `pid` as blocked, and will not run until set unblocked.
+
+#### MODULE_API_UNBLOCK_PID
+
+Arguments: `uint32_t pid`
+
+Sets the process `pid` as unblocked, and will resume execution after the current queue has finished executing.
+
+#### MODULE_API_GET_CPID
+
+Arguments: 
+
+Obtains the ID of the current executing process.
+
+#### MODULE_API_GET_INTERRUPT
+
+Arguments: 
+
+Asks the interrupt handler whether or not it considers itself to be in an interrupt. Returns 1 if true.
+
+Deprecated, but probably won't be removed for now.
