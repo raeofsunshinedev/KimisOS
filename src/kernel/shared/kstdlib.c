@@ -1,6 +1,7 @@
 #include "kstdlib.h"
 #include <stdarg.h>
 #include "memory.h"
+#include "string.h"
 
 char* log_info_types[] = {
     "\b",
@@ -99,4 +100,27 @@ void vector_pop(uint32_t pos, vector_t *vector, void *element){
         ((uint8_t *)element)[i] = ((uint8_t *)(vector->ptr))[i];
     }
     vector->size--;
+}
+
+uint32_t atoi(char *str, uint32_t base){
+    // char reverse[strlen(str)];
+    // // printf("strlen: %d, %s", strlen(str), str);
+    // uint32_t j = 0;
+    // for(uint32_t i = strlen(str) - 1; i >= 0; i--){
+    //     j
+    // }
+    uint32_t i = 0;
+    uint32_t total = 0;
+    while(str[i]){
+        char c = str[i];
+        total *= base;
+        if(c >= 48 && c <= (57 - ((10 - base) * (base < 10)))){
+            total += (c-48);
+        }
+        if(base > 10 && c >= 97 && c <= 102 - (16 - base)){
+            total += (c - 97 + 10);
+        }
+        i++;
+    }
+    return total;
 }

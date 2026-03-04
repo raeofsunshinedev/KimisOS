@@ -14,5 +14,5 @@ _start:
     jmp $
     
 section .bss
-stack_bottom: resb 0x4000
+stack_bottom: resb 0x10000
 stack_top:

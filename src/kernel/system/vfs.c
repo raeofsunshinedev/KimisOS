@@ -278,7 +278,7 @@ vfile_t *fget_file(char *name){
     char *tmp = dir;
     uint32_t filename_offset = 0;
     vfile_t *current_dir = &root_dir; 
-    vfile_t *tmpfile;
+    vfile_t *tmpfile = 0;
     while(tmp != 0){
         dir = tmp;
         tmpfile = search_dir(tmp, *current_dir);

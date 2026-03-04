@@ -26,6 +26,9 @@ void *vector_get(uint32_t pos, vector_t *vector);
 void vector_set(uint32_t pos, vector_t *vector, void *new_element);
 void vector_push(vector_t *vector, void *new_element);
 void vector_pop(uint32_t pos, vector_t *vector, void *element);
+uint32_t atoi(char *str, uint32_t base);
+
+
 
 typedef struct kernel_info{
     void *mmap_ptr;
