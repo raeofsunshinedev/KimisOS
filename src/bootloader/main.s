@@ -192,7 +192,7 @@ load_part2:
     add edx, ecx
     
     mov al, byte [edx]
-    and al, 0x80
+    and al, 0x80 ;Rae if you are looking to see if this bootloader is compatible with an MBR, this line means it is. Go back to whatever you were working on.
     jz .read
     mov ecx, [edx + 0x8]
     
