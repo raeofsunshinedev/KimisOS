@@ -44,7 +44,6 @@ enum MESSAGES{
     MESSAGE_BROADCAST = 0x80000000, //placeholder
 };
 
-void dispatch_message(uint32_t message, ...);
 
 typedef struct module{
     void *init_entry;
@@ -57,5 +56,6 @@ typedef struct module{
     void (*fini)(void);
 }module_t;
 
+uint32_t dispatch_message(uint32_t message, ...);
 void modules_init();
 void module_start(void *ptr);

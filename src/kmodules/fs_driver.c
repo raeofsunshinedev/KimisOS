@@ -17,19 +17,37 @@ module_t module_data = {
     0,
 };
 
-// void mount_fat32(vfile_t *dev_file, char *destination){
+uint8_t fat32_check_valid(fat32_bpb_t *bpb){
+    return bpb->signature == 0x28 || bpb->signature == 0x29;
+}
+
+uint32_t fat32_mount(vfile_t *dev_file, char *destination, uint32_t offset){
+    char *bpb_buffer = malloc(api, 1);
+    fread(api, dev_file, bpb_buffer, offset, 4096);
+    fat32_bpb_t *bpb = bpb_buffer;
     
-// }
+    api(MODULE_API_PRINT, MODULE_NAME, "Sizeof struct: %d, sig: %x, boot sig: %x\n", sizeof(fat32_bpb_t), bpb->signature, bpb->bootable_sig);
+    if(!fat32_check_valid(bpb)){
+        api(MODULE_API_PRINT, MODULE_NAME, "Error: No valid BPB\n");
+        return 0;
+    }
+    return 1;
+}
 
 int32_t message_handler(uint32_t message, ...){
     puts(api, MODULE_NAME, "Called message handler!\n");
+    
+    va_list args;
+    va_start(args, message);
+    
+    if(message == MESSAGE_MOUNT_FS){
+        vfile_t *device = va_arg(args, vfile_t *);
+        char *dest = va_arg(args, char *);
+        uint32_t offset = va_arg(args, uint32_t);
+        return fat32_mount(device, dest, offset);
+    }
     return -1;
 }
-
-int phony_read(vfile_t *file, char*buffer, uint32_t offset, uint32_t count){
-    return 0;
-}
-
 
 void init(KOS_MAPI_FP module_api, uint32_t api_version){
     api = module_api;

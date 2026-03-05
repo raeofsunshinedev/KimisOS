@@ -29,15 +29,15 @@ void sysinit(){
     }
     modules_init();
     initrc_read(initrc);
-    vfile_t *disk_dir = fget_file("/dev/disk");
-    if(disk_dir == 0){
-        mlog("KERNEL", "Error: /dev/disk does not exist\n", MLOG_PRINT);
-    }
-    vfile_t **dir_data = disk_dir->access.data.ptr;
-    for(uint32_t i = 0; dir_data[i]; i++){
-        mlog("KERNEL", "Filename: %s\n", MLOG_PRINT, dir_data[i]->name);
-        vfs_detect_partitions(dir_data[i]);
-    }
+    // vfile_t *disk_dir = fget_file("/dev/disk");
+    // if(disk_dir == 0){
+    //     mlog("KERNEL", "Error: /dev/disk does not exist\n", MLOG_PRINT);
+    // }
+    // vfile_t **dir_data = disk_dir->access.data.ptr;
+    // for(uint32_t i = 0; dir_data[i]; i++){
+    //     mlog("KERNEL", "Filename: %s\n", MLOG_PRINT, dir_data[i]->name);
+    //     vfs_detect_partitions(dir_data[i]);
+    // }
     // dispatch_message(0);
     printf("Bleh\n");
     //why did i stop working on this? what was wrong with this?

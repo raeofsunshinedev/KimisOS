@@ -156,7 +156,7 @@ uint32_t module_api(uint32_t func, ...){
 
 
 
-void dispatch_message(uint32_t message, ...){
+uint32_t dispatch_message(uint32_t message, ...){
     va_list args;
     va_start(args, message);
     
@@ -180,12 +180,13 @@ void dispatch_message(uint32_t message, ...){
                 result = handler(message, srcfile, destname, offset);
                 break;
         }
-        if((int32_t) message > 0 && result){
-            break;
+        if((int32_t) message >= 0 && result){
+            va_end(args);
+            return result;
         }
     }
-    
     va_end(args);
+    return 0;
 }
 
 void module_start(void *ptr){

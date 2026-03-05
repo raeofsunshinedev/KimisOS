@@ -116,7 +116,10 @@ void initrc_read(vfile_t *file){
             // printf("TEST: %s, %s, %d\n", mount_src_name, mount_dest, ptr[i]);
             
             vfile_t *to_mount = fget_file(mount_src_name);
-            dispatch_message(MESSAGE_MOUNT_FS, to_mount, mount_dest, offset);
+            if(!dispatch_message(MESSAGE_MOUNT_FS, to_mount, mount_dest, offset)){
+                mlog("INITRC", "Error: Could not mount device %s at %s", MLOG_PRINT, mount_src_name, mount_dest);
+                asm("int $13");
+            }
         }
         else if(!strcmp(statement, "END")){
             return;

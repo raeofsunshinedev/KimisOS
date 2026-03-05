@@ -47,10 +47,11 @@ typedef struct cpu_registers{
     uint32_t eip, cs, eflags, useresp, ss;
 }__attribute__((packed))cpu_registers_t;
 
-typedef enum mount_ops{
-    MOUNT_NEW,
-    MOUNT_UNMOUNT,
-}MOUNT_OPERATION;
+enum MESSAGES{
+    MESSAGE_MOUNT_FS,
+    MESSAGE_UNMOUNT_FS,
+    MESSAGE_BROADCAST = 0x80000000, //placeholder
+};
 
 typedef enum vfile_type{
     VFILE_NULL,
