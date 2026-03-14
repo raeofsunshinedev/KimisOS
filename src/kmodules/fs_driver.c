@@ -21,6 +21,7 @@ uint8_t fat32_check_valid(fat32_bpb_t *bpb){
     return bpb->signature == 0x28 || bpb->signature == 0x29;
 }
 
+
 uint32_t fat32_mount(vfile_t *dev_file, char *destination, uint32_t offset){
     char *bpb_buffer = malloc(api, 1);
     fread(api, dev_file, bpb_buffer, offset, 4096);
@@ -31,6 +32,10 @@ uint32_t fat32_mount(vfile_t *dev_file, char *destination, uint32_t offset){
         api(MODULE_API_PRINT, MODULE_NAME, "Error: No valid BPB\n");
         return 0;
     }
+    puts(api, MODULE_NAME, "Valid BPB found!\n");
+    
+    fat32_make_mount();
+    
     return 1;
 }
 

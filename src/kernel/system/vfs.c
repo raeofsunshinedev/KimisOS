@@ -162,6 +162,7 @@ vfile_t *fcreate(char *name, VFILE_TYPE type, ...){
                 case VFILE_DIRECTORY:
                 case VFILE_MOUNT:
                 case VFILE_SYMLINK:
+                case VFILE_FILE:
                     void *ptr = va_arg(args, void*);
                     vfile->access.data.ptr = ptr;
                     vfile->access.data.size_pgs = va_arg(args, uint32_t);
@@ -169,7 +170,6 @@ vfile_t *fcreate(char *name, VFILE_TYPE type, ...){
                     // what was the above line even for
                     add_file(vfile, current_dir);
                     break;
-                case VFILE_FILE:
                 case VFILE_DEVICE:
                     void *write = va_arg(args, void *);
                     void *read = va_arg(args, void *);
@@ -216,10 +216,10 @@ int fwrite(vfile_t *file_entry, void *byte_array, uint32_t offset, uint32_t coun
             return 0; //always successful. If it's not, there's been a page fault. Yk, quantum sort style.
             break;
         case VFILE_MOUNT:
+        case VFILE_FILE:
             mount_t *funcs = file_entry->access.data.ptr;
             return funcs->write(file_entry, byte_array, offset, count);
         case VFILE_PDIR:
-        case VFILE_FILE:
         case VFILE_DEVICE:
             return file_entry->access.funcs.write(file_entry, byte_array, offset, count);
             break;
@@ -237,10 +237,10 @@ int fread(vfile_t *file_entry, void *byte_array, uint32_t offset, uint32_t count
             return 0; //always successful. If it's not, there's been a page fault. Yk, quantum sort style.
             break;
         case VFILE_MOUNT:
+        case VFILE_FILE:
             mount_t *funcs = file_entry->access.data.ptr;
             return funcs->read(file_entry, byte_array, offset, count);
         case VFILE_PDIR:
-        case VFILE_FILE:
         case VFILE_DEVICE:
             return file_entry->access.funcs.read(file_entry, byte_array, offset, count);
             break;
