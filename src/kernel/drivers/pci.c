@@ -77,6 +77,10 @@ void pci_make_file(uint32_t class, uint8_t bus, uint8_t slot, uint8_t func){
         strcpy(str, cpy);
         strcpy(num, cpy + strlen(cpy));
         file = fcreate(cpy, VFILE_DEVICE, pci_write_file, pci_read_file);
+        if(tries >= 254){
+            mlog(MODULE_NAME, "Failed to make PCI file for device!\n", MLOG_PRINT);
+            return;
+        }
     }
     file->id = (uint32_t)slot | ((uint32_t)func << 8) | ((uint32_t)bus << 16);
 }

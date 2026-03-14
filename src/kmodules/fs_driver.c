@@ -34,8 +34,6 @@ uint32_t fat32_mount(vfile_t *dev_file, char *destination, uint32_t offset){
     }
     puts(api, MODULE_NAME, "Valid BPB found!\n");
     
-    fat32_make_mount();
-    
     return 1;
 }
 

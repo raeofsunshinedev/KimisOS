@@ -23,12 +23,15 @@ void sysinit(){
     pci_init();
     // modules_init(boot_info, 0);
     read_initrd(boot_info->initrd);
-    vfile_t *initrc = fget_file("/boot/initrc.conf");
+    modules_init();
+    vfile_t *initrc = fopen("/boot/initrc.conf");
     if(initrc){
         mlog("KERNEL", "Found initrc at: %x\n", MLOG_PRINT, initrc->access.data.ptr);
+        initrc_read(initrc);
     }
-    modules_init();
-    initrc_read(initrc);
+    else{
+        mlog("KERNEL", "ERROR: Initrc could not be located!\n", MLOG_PRINT);
+    }
     // vfile_t *disk_dir = fget_file("/dev/disk");
     // if(disk_dir == 0){
     //     mlog("KERNEL", "Error: /dev/disk does not exist\n", MLOG_PRINT);
