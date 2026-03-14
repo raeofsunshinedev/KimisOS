@@ -36,7 +36,15 @@ int read_initrd(initrd_t *initrd){
         // }
         char final_fname[80] = "/boot/";
         strcat(file->filename, final_fname);
-        fcreate(final_fname, VFILE_POINTER, (archive + offset + sizeof(USTAR_file_t)), fsize_pgs);
+        vfile_t *tmp = fcreate(final_fname, 0);
+        if(!tmp){
+            mlog("INITRD", "Failed to read critical boot file: %s\n", MLOG_PRINT, file->filename);
+        }
+        if(tmp->ptr){
+            kfree(tmp->ptr);
+        }
+        tmp->ptr = (archive + offset + sizeof(USTAR_file_t));
+        tmp->size = fsize_pgs * 4096;
         // printf("%s, %d, %d\n", final_fname, filesize, fsize_pgs);
         offset += (((filesize + 511) / 512) + 1) * 512;
     }

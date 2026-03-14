@@ -26,7 +26,7 @@ void sysinit(){
     modules_init();
     vfile_t *initrc = fopen("/boot/initrc.conf");
     if(initrc){
-        mlog("KERNEL", "Found initrc at: %x\n", MLOG_PRINT, initrc->access.data.ptr);
+        mlog("KERNEL", "Found initrc", MLOG_PRINT);
         initrc_read(initrc);
     }
     else{
@@ -56,10 +56,10 @@ extern void kmain(kernel_info_t *kernel_info){
     pic_setmask(0x0, PIC1_DATA);
     pic_setmask(0x0, PIC2_DATA);
     
-    fcreate("/dev", VFILE_DIRECTORY, kmalloc(1), 1);
-    fcreate("/dev/disk", VFILE_DIRECTORY, kmalloc(1), 1);
-    fcreate("/tmp", VFILE_DIRECTORY, kmalloc(1), 1);
-    fcreate("/boot", VFILE_DIRECTORY, kmalloc(1), 1);
+    fcreate("/dev", FS_FILE_IS_DIR);
+    fcreate("/dev/disk", FS_FILE_IS_DIR);
+    fcreate("/tmp", FS_FILE_IS_DIR);
+    fcreate("/boot", FS_FILE_IS_DIR);
     mlog("KERNEL", "Initializing Scheduler & starting PID 1\n", MLOG_PRINT);
     boot_info = kernel_info;
     scheduler_init();

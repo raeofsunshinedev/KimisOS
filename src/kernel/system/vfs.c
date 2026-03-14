@@ -3,21 +3,21 @@
 #include "../shared/memory.h"
 #include "../shared/string.h"
 #define MODULE_NAME "KVFS"
-vfile_t root_dir = {"/", VFILE_DIRECTORY};
+vfile_t root_dir = {"/", FS_FILE_IS_DIR | FS_FILE_SYSTEM};
 
 // !TODO: Modify code to become thread-safe
 
 void vfs_init(){
     mlog(MODULE_NAME, "Initializing VFS\n", MLOG_PRINT);
-    root_dir.access.data.ptr = kmalloc(1);
-    root_dir.access.data.size_pgs = 1;
+    // root_dir.access.data.ptr = kmalloc(1);
+    // root_dir.access.data.size_pgs = 1;
 }
 
 void add_file(vfile_t *vfile, vfile_t *current_dir){
     return;
 }
 
-vfile_t *fcreate(char *name, VFILE_TYPE type, ...){
+vfile_t *fcreate(char *name, FS_FILE_FLAGS flags){
     return 0;
 }
 

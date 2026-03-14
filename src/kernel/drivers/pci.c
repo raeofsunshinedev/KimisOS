@@ -76,7 +76,9 @@ void pci_make_file(uint32_t class, uint8_t bus, uint8_t slot, uint8_t func){
         itoa(tries++, num, 10);
         strcpy(str, cpy);
         strcpy(num, cpy + strlen(cpy));
-        file = fcreate(cpy, VFILE_DEVICE, pci_write_file, pci_read_file);
+        file = fcreate(cpy, 0);
+        file->read = pci_read_file;
+        file->write = pci_write_file;
         if(tries >= 254){
             mlog(MODULE_NAME, "Failed to make PCI file for device!\n", MLOG_PRINT);
             return;
@@ -124,11 +126,11 @@ void pci_enumerate_bus(uint8_t bus){
 
 void pci_init(){
     mlog(MODULE_NAME, "Enumerating PCI Buses\n", MLOG_PRINT);
-    vfile_t *file = fcreate("dev/pci/", VFILE_DIRECTORY, kmalloc(1), 1);
-    fcreate("dev/pci/disk", VFILE_DIRECTORY, kmalloc(1), 1);
-    fcreate("dev/pci/net", VFILE_DIRECTORY, kmalloc(1), 1);
-    fcreate("dev/pci/video", VFILE_DIRECTORY, kmalloc(1), 1);
-    fcreate("dev/pci/bridge", VFILE_DIRECTORY, kmalloc(1), 1);
+    vfile_t *file = fcreate("dev/pci/", FS_FILE_IS_DIR);
+    fcreate("dev/pci/disk", FS_FILE_IS_DIR);
+    fcreate("dev/pci/net", FS_FILE_IS_DIR);
+    fcreate("dev/pci/video", FS_FILE_IS_DIR);
+    fcreate("dev/pci/bridge", FS_FILE_IS_DIR);
     for(uint32_t i = 0 ; i < 256; i++){
         pci_enumerate_bus(i);
     }

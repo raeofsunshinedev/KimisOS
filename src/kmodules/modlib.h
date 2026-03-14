@@ -53,34 +53,31 @@ enum MESSAGES{
     MESSAGE_BROADCAST = 0x80000000, //placeholder
 };
 
-typedef enum vfile_type{
-    VFILE_NULL,
-    VFILE_POINTER,
-    VFILE_DEVICE,
-    VFILE_MOUNT,
-    VFILE_DIRECTORY,
-    VFILE_PDIR,//used for directories in physical filesystems.
-    VFILE_FILE,
-}VFILE_TYPE;
+typedef enum fs_flags{
+    FS_FILE_READ_ONLY = 1,
+    FS_FILE_HIDDEN = 2,
+    FS_FILE_SYSTEM = 4,
+    FS_FILE_IS_DIR = 0x10,
+    FS_FILE_ARCHIVE = 0x20,
+    FS_FILE_PIPE = 0x40,
+    FS_FILE_LINK = 0x80
+}FS_FILE_FLAGS;
 
 typedef struct virtual_file{
-    char name[20];
-    VFILE_TYPE type;
-    uint32_t id;//to be assigned by driver;
-    uint32_t mount_id;
-    uint8_t lock;
+    char name[256];
+    FS_FILE_FLAGS flags;
+    int (*delete)(struct virtual_file *file_entry);
+    struct virtual_file *(*create)(char *name, FS_FILE_FLAGS flags);
+    int (*write)(struct virtual_file *file_entry, void *data, uint32_t offset, uint32_t count);
+    int (*read)(struct virtual_file *file_entry, void *data, uint32_t offset, uint32_t count);
+    struct virtual_file *(*open)(char *name);
+    struct virtual_file **(*lookup)(char *name);
+    
+    uint32_t id;//for use in drivers
+    void * ptr; //also for use in drivers
     uint32_t size;
-    struct virtual_file *parent;//should point to A: a virtual directory, or B: a mounted filesystem
-    union{
-        struct{
-            int (*read)(struct virtual_file *file, void *data, uint32_t offset, uint32_t count);
-            int (*write)(struct virtual_file *file, void *data, uint32_t offset, uint32_t count);
-        }funcs;
-        struct{
-            void *ptr;
-            uint32_t size_pgs;
-        }__attribute__((packed))data;
-    }access;
+    uint32_t offset; //for use in drivers
+    
 }vfile_t;
 
 inline void *malloc(KOS_MAPI_FP api, uint32_t size_pages){
@@ -90,7 +87,7 @@ inline void *free(KOS_MAPI_FP api, void *ptr){
     api(MODULE_API_FREE, ptr);
     return 0;
 }
-inline vfile_t *fget_file(KOS_MAPI_FP api, char *filename){
+inline vfile_t *fopen(KOS_MAPI_FP api, char *filename){
     // vfile_t *file = malloc(api, 1);
     return (void *)api(MODULE_API_OPEN, filename);
 }
@@ -101,8 +98,8 @@ inline int fwrite(KOS_MAPI_FP api, vfile_t *file, char *buffer, uint32_t offset,
     return api(MODULE_API_WRITE, file, buffer, offset, count);
 }
 //read documenation for this one
-inline vfile_t *fcreate(KOS_MAPI_FP api, char *filename, VFILE_TYPE type, char *pointer_write, char *size_read){
-    return (void *)api(MODULE_API_CREAT, filename, type, pointer_write, size_read);
+inline vfile_t *fcreate(KOS_MAPI_FP api, char *filename, FS_FILE_FLAGS type){
+    return (void *)api(MODULE_API_CREAT, filename, type);
 }
 inline void puts(KOS_MAPI_FP api, char *mname, char *str){
     api(MODULE_API_PRINT, mname, str);

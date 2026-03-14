@@ -208,7 +208,7 @@ int ata_write(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
     if (count == 0) return -1;
     ata_acquire_primary_lock();
     // }
-    drive_t drive = drives[file->mount_id];
+    drive_t drive = drives[file->id];
     uint16_t io_base = drive.BARs[0] &0xfffe;
     uint16_t ctrl_base = drive.BARs[1] &0xfffe;
     uint16_t bm_base = drive.BARs[4] & ~3;
@@ -283,7 +283,7 @@ int ata_write(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
     
     asm("sti");
     
-    transferring_disk_index = file->mount_id;
+    transferring_disk_index = file->id;
     
     uint8_t status = inb(ctrl_base);
     uint8_t bm_status = inb(bm_base + 2);
@@ -303,7 +303,7 @@ int ata_write(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
 
 int ata_read(vfile_t *file, uint8_t *ptr, uint32_t offset, uint32_t count) {
     if (count == 0) return -1;
-    drive_t drive = drives[file->mount_id];
+    drive_t drive = drives[file->id];
     uint16_t io_base = drive.BARs[0] &0xfffe;
     uint16_t ctrl_base = drive.BARs[1] &0xfffe;
     uint16_t bm_base = drive.BARs[4] & ~3;
@@ -372,7 +372,7 @@ int ata_read(vfile_t *file, uint8_t *ptr, uint32_t offset, uint32_t count) {
     recieved_ints = 0;
     
     asm("cli");
-    transferring_disk_index = file->mount_id;
+    transferring_disk_index = file->id;
     uint32_t cpid = api(MODULE_API_GET_CPID);
     // api(MODULE_API_PRINT, MODULE_NAME, "Cpid: %x", cpid);
     api(MODULE_API_BLOCK_PID, cpid);
@@ -522,8 +522,10 @@ uint8_t ata_identify(uint32_t index, uint16_t disk){
     uint32_t prdt_phys = api(MODULE_API_PMALLOC64K);
     drives[index].PRDT = (void *)api(MODULE_API_KMALLOC_PADDR, prdt_phys, 16);
     itoa(ata_drives, fname + strlen(fname), 10);
-    vfile_t *new_file = fcreate(api, fname, VFILE_DEVICE, ata_write, ata_read);
-    new_file->mount_id = index;
+    vfile_t *new_file = fcreate(api, fname, FS_FILE_SYSTEM);
+    new_file->read = ata_read;
+    new_file->write = ata_write;
+    new_file->id = index;
     puts(api, "KIDM", "Valid Drive!\n");
     return 0;
 }
@@ -596,8 +598,11 @@ void init(KOS_MAPI_FP module_api, uint32_t api_version){
     api(MODULE_API_ADDINT, 15, module_data.key, int_handler);
     api(MODULE_API_ADDINT, 14, module_data.key, int_handler);
     // api(MODULE_API_ADDINT, 0, module_data.key, int_handler);
-    vfile_t *pci_drive_dir = fget_file(api, "/dev/pci/disk/");
-    vfile_t **dir_data = (pci_drive_dir->access.data.ptr);
+    vfile_t *pci_drive_dir = fopen(api, "/dev/pci/disk/");
+    if(!pci_drive_dir){
+        return;
+    }
+    vfile_t **dir_data = (pci_drive_dir->ptr);
     for(uint32_t i = 0; dir_data[i]; i++){
         vfile_t *current_file = dir_data[i];
         uint32_t class = 0;

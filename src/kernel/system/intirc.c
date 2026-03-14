@@ -17,12 +17,12 @@ int is_num(char c){
 
 void initrc_read(vfile_t *file){
     mlog("KERNEL", "Reading initrc:\n", MLOG_PRINT);
-    char *ptr = file->access.data.ptr;
+    char *ptr = file->ptr;
     if(!file || !ptr){
         mlog("KERNEL", "Failed to read initrc!\n", MLOG_PRINT);
         return;
     }
-    uint32_t size = file->access.data.size_pgs * 4096;
+    uint32_t size = file->size;
     char statement[512];
     uint32_t i = 0;
     while(strcmp(statement, "END")){
@@ -67,7 +67,7 @@ void initrc_read(vfile_t *file){
                 printf("Error: Could not find module in Initrc.conf: %s\n", module_name);
                 continue;
             }
-            module_start(module->access.data.ptr);
+            module_start(module->ptr);
         }
         else if(!strcmp(statement, "MOUNT")){
             char mount_src_name[512] = {0};
