@@ -14,6 +14,7 @@ enum MODULE_API_FUNCS{
     MODULE_API_CREAT, //create a virtual file and assigns it to the the proper module (requires having a read and write function passed)
     MODULE_API_DELET, //delete a virtual file
     MODULE_API_OPEN,
+    MODULE_API_READDIR,
     MODULE_API_MAP, //map physical address to virtual address
     MODULE_API_UNMAP, //unmap physical address to virtual address
     MODULE_API_PADDR, //get physical address of memory
@@ -67,14 +68,15 @@ typedef struct virtual_file{
     char name[256];
     FS_FILE_FLAGS flags;
     int (*delete)(struct virtual_file *file_entry);
-    struct virtual_file *(*create)(char *name, FS_FILE_FLAGS flags);
+    struct virtual_file *(*create)(char *path, FS_FILE_FLAGS flags);
     int (*write)(struct virtual_file *file_entry, void *data, uint32_t offset, uint32_t count);
     int (*read)(struct virtual_file *file_entry, void *data, uint32_t offset, uint32_t count);
-    struct virtual_file *(*open)(char *name);
-    struct virtual_file **(*lookup)(char *name);
+    struct virtual_file *(*open)(char *path);
+    // struct virtual_file **(*lookup)(char *name);
+    int (*readdir)(struct virtual_file* file, struct virtual_file *buffer, uint32_t count, uint32_t offset);
     
     uint32_t id;//for use in drivers
-    void * ptr; //also for use in drivers
+    void *ptr; //also for use in drivers
     uint32_t size;
     uint32_t offset; //for use in drivers
     

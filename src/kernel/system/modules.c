@@ -69,10 +69,11 @@ uint32_t module_api(uint32_t func, ...){
             uint32_t count = va_arg(vars, uint32_t);
             return_value = fread(file, buffer, offset, count);
             break;
-        case MODULE_API_WRITE:
+            case MODULE_API_WRITE:
             file = va_arg(vars, vfile_t *);
             buffer = va_arg(vars, char *);
             offset = va_arg(vars, uint32_t), count = va_arg(vars, uint32_t);
+            count = va_arg(vars, uint32_t);
             return_value = fwrite(file, buffer, offset, count);
             break;
         case MODULE_API_CREAT:
@@ -90,6 +91,13 @@ uint32_t module_api(uint32_t func, ...){
         case MODULE_API_OPEN:
             name = va_arg(vars, char *);
             return_value = (uint32_t)fopen(name);
+            break;
+        case MODULE_API_READDIR:
+            file = va_arg(vars, vfile_t *);
+            buffer = va_arg(vars, void *);
+            offset = va_arg(vars, uint32_t);
+            count = va_arg(vars, uint32_t);
+            return_value = readdir(file, buffer, offset, count);
             break;
         case MODULE_API_MAP:
             return_value = 0;

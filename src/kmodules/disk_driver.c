@@ -602,9 +602,16 @@ void init(KOS_MAPI_FP module_api, uint32_t api_version){
     if(!pci_drive_dir){
         return;
     }
-    vfile_t **dir_data = (pci_drive_dir->ptr);
-    for(uint32_t i = 0; dir_data[i]; i++){
-        vfile_t *current_file = dir_data[i];
+    // vfile_t **dir_data = (pci_drive_dir->ptr);
+    
+    const uint32_t PCI_SEARCH_COUNT = 64;
+    
+    vfile_t *dir_data = malloc(api, (PCI_SEARCH_COUNT * sizeof(vfile_t) + 4095)/4096);
+    
+    api(MODULE_API_READDIR, pci_drive_dir, dir_data, 0, 128);
+    
+    for(uint32_t i = 0; PCI_SEARCH_COUNT; i++){
+        vfile_t *current_file = &(dir_data[i]);
         uint32_t class = 0;
         fread(api, current_file, &class, 0x8, 1);
         uint32_t progif = class >> 8 & 0xff;

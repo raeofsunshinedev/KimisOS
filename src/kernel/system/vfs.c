@@ -9,8 +9,8 @@ vfile_t root_dir = {"/", FS_FILE_IS_DIR | FS_FILE_SYSTEM};
 
 void vfs_init(){
     mlog(MODULE_NAME, "Initializing VFS\n", MLOG_PRINT);
-    // root_dir.access.data.ptr = kmalloc(1);
-    // root_dir.access.data.size_pgs = 1;
+    root_dir.ptr = kmalloc(1);
+    root_dir.size = 4096;//one page is 4096 bytes
 }
 
 void add_file(vfile_t *vfile, vfile_t *current_dir){
@@ -25,7 +25,6 @@ int fdelete(vfile_t *file_entry){
     return 0;
 }
 
-// navya was here https://github.com/novabansal
 int fwrite(vfile_t *file_entry, void *byte_array, uint32_t offset, uint32_t count){
     return 0;
 }
@@ -34,7 +33,11 @@ int fread(vfile_t *file_entry, void *byte_array, uint32_t offset, uint32_t count
     return 0;
 }
 
-vfile_t *lookup(char *name, vfile_t dir){
+// vfile_t *lookup(char *name, vfile_t dir){
+//     return 0;
+// }
+
+int readdir(vfile_t* file, vfile_t *buffer, uint32_t offset, uint32_t count){
     return 0;
 }
 
