@@ -19,7 +19,7 @@ void ramfs_init(){
     root_dir.size = 4096;//one page is 4096 bytes
 }
 
-void ramfs_create(char *path, FS_FILE_FLAGS flags){
+vfile_t *ramfs_create(char *path, FS_FILE_FLAGS flags){
     return 0;
 }
 

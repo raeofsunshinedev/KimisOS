@@ -1,4 +1,5 @@
 #include "vfs.h"
+#include "ramfs.h"
 #include "../shared/kstdlib.h"
 #include "../shared/memory.h"
 #include "../shared/string.h"
@@ -17,7 +18,7 @@ vfile_t *fcreate(char *path, FS_FILE_FLAGS flags){
 
 vfile_t *vfcreate(vfile_t *parent_dir, char *relpath, FS_FILE_FLAGS flags){
     if(!relpath){
-        return;
+        return 0;
     }
     
     char *name = kmalloc((strlen(relpath) + 4095)/4096);//don't make modifications to the original string

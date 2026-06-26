@@ -26,6 +26,7 @@ void sysinit(){
     read_initrd(boot_info->initrd);
     modules_init();
     vfile_t *initrc = fopen("/boot/initrc.conf");
+    mlog("RAE", "\033[1;32mDid you remember to migrate your modules to the new API?\033[0m\n", MLOG_PRINT);
     if(initrc){
         mlog("KERNEL", "Found initrc", MLOG_PRINT);
         initrc_read(initrc);
