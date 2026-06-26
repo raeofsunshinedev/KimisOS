@@ -32,7 +32,7 @@ typedef struct virtual_file{
     
     uint32_t id;//for use in drivers
     void *private; //also for use in drivers
-    uint32_t size;
+    uint32_t size; //should be in bytes
     uint32_t offset; //for use in drivers
     
 }vfile_t;
@@ -46,5 +46,5 @@ int fread(vfile_t *file_entry, void *byte_array, uint32_t offset, uint32_t count
 
 vfile_t *vfcreate(vfile_t *parent, char *relpath, FS_FILE_FLAGS flags);
 vfile_t *rfopen(char *name, vfile_t *dir);
-
+vfile_t *fclose(vfile_t *);
 vfile_t *fopen(char *path);

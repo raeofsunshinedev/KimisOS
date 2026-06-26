@@ -97,7 +97,8 @@ uint32_t module_api(uint32_t func, ...){
             buffer = va_arg(vars, void *);
             offset = va_arg(vars, uint32_t);
             count = va_arg(vars, uint32_t);
-            return_value = readdir(file, buffer, offset, count);
+            // return_value = readdir(file, buffer, offset, count);
+            return_value = 0;
             break;
         case MODULE_API_MAP:
             return_value = 0;

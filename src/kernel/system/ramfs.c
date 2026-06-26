@@ -23,10 +23,15 @@ void ramfs_init(){
     mlog(MODULE_NAME, "Initializing VFS\n", MLOG_PRINT);
     root_dir.private = kmalloc(1);
     root_dir.size = PAGE_SIZE_BYTES;//one page is 4096 bytes
+    // printf("Sizeof VFILE_T: %d", sizeof(vfile_t));
 }
 
-vfile_t *resolve_path(char *pathname){
-    
+//resolves the path relative to start
+vfile_t *resolve_path(char *pathname, vfile_t *start){
+    // vfile_t **buffer = (vfile_t *)start->private;
+    // for(int i = 0; i < start->size/4, i++){
+        
+    // }
 }
 
 vfile_t *ramfs_create(char *path, FS_FILE_FLAGS flags){
