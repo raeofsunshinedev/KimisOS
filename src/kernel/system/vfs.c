@@ -8,9 +8,9 @@
 // !TODO: Modify code to become thread-safe
 
 
-void add_file(vfile_t *vfile, vfile_t *current_dir){
-    return;
-}
+// void add_file(vfile_t *vfile, vfile_t *current_dir){
+//     return;
+// }
 
 vfile_t *fcreate(char *path, FS_FILE_FLAGS flags){
     vfcreate(get_root_dir(), path, flags);
