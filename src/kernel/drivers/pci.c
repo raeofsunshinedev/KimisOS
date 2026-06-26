@@ -46,15 +46,14 @@ void pci_write_file(vfile_t *file, uint32_t *buffer, uint32_t offset, uint32_t c
     return;
 }
 void pci_make_file(uint32_t class, uint8_t bus, uint8_t slot, uint8_t func){
-    char *str = kmalloc(1);
-    memcpy("/dev/pci/", str, 9);
+    char str[256] = "/dev/pci/\0";
     char *dev = classes[class >> 8][class & 0xf];
     switch(class >> 8){
         case 0x1://PCI class 0x1 is disks
+        // printf("!!STR: %s, LEN: %d!!", str, strlen(str));
         strcpy("disk/", str + strlen(str));
         uint32_t l = (uint32_t)pci_read_config(bus, slot, func, 0x4) | (uint32_t)pci_read_config(bus, slot, func, 0x6) << 16;
         pci_write_config(bus, slot, func, 0x4, l | 4);
-        
         break;
         case 0x2://PCI class 0x2 is network controllers
         strcpy("net/", str + strlen(str));

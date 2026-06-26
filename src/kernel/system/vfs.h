@@ -8,12 +8,13 @@ typedef enum fs_flags{
     FS_FILE_IS_DIR = 0x10,
     FS_FILE_ARCHIVE = 0x20,
     FS_FILE_PIPE = 0x40,
-    FS_FILE_LINK = 0x80
+    FS_FILE_LINK = 0x80,
+    FS_FILE_MOUNT = 0x100,
 }FS_FILE_FLAGS;
 
 typedef struct virtual_file{
-    char name[256];
-    FS_FILE_FLAGS flags;
+    char name[212];
+    uint16_t flags;
     int (*delete)(struct virtual_file *file_entry);
     struct virtual_file *(*create)(char *path, FS_FILE_FLAGS flags);
     int (*write)(struct virtual_file *file_entry, void *data, uint32_t offset, uint32_t count);
@@ -35,6 +36,6 @@ vfile_t *fcreate(char *name, FS_FILE_FLAGS flags);
 int fdelete(vfile_t* file_entry);
 int fwrite(vfile_t *file_entry, void *byte_array, uint32_t offset, uint32_t count);
 int fread(vfile_t *file_entry, void *byte_array, uint32_t offset, uint32_t count);
-int readdir(vfile_t* file, struct virtual_file *buffer, uint32_t offset, uint32_t count);
+int readdir(vfile_t* file, vfile_t *buffer, uint32_t offset, uint32_t count);
 
 vfile_t *fopen(char *path);
