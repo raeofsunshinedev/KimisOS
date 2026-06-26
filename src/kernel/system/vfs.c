@@ -6,6 +6,7 @@
 #define MODULE_NAME "KVFS"
 
 // !TODO: Modify code to become thread-safe
+// 3 months later: does this count?
 
 
 // void add_file(vfile_t *vfile, vfile_t *current_dir){
@@ -80,7 +81,7 @@ vfile_t *rfopen(char *name, vfile_t *dir){
     if(!dir || !name || !dir->fileops || !dir->fileops->rfopen){
         return 0;
     }
-    return dir->fileops->rfopen(name);
+    return dir->fileops->rfopen(name, dir);
 }
 
 int readdir(vfile_t* file, vfile_t* buffer, uint32_t offset, uint32_t count){

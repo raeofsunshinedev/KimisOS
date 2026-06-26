@@ -20,7 +20,7 @@ typedef struct fileops{
     struct virtual_file *(*open)(char *path);
     void (*close)(struct virtual_file *file);
     // int (*readdir)(struct virtual_file* file, struct virtual_file *buffer, uint32_t count, uint32_t offset);
-    struct virtual_file *(*rfopen)(char *name);
+    struct virtual_file *(*rfopen)(char *name, struct virtual_file *parent);
 } fileops_t;
 
 typedef struct virtual_file{
