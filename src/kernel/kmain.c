@@ -12,6 +12,7 @@
 #include "system/vfs.h"
 #include "drivers/ustar.h"
 #include "system/initrc.h"
+#include "system/ramfs.h"
 
 kernel_info_t *boot_info = 0;
 
@@ -49,7 +50,7 @@ void sysinit(){
 extern void kmain(kernel_info_t *kernel_info){
     serial_init();
     pm_init(kernel_info);
-    vfs_init();
+    ramfs_init();
     mlog("KERNEL", "Initializing IDT\n", MLOG_PRINT);
     idt_load();
     pic_init(0x20);

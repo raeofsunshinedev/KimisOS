@@ -45,6 +45,14 @@ void pci_read_file(vfile_t *file, uint32_t *buffer, uint32_t offset, uint32_t co
 void pci_write_file(vfile_t *file, uint32_t *buffer, uint32_t offset, uint32_t count){
     return;
 }
+
+fileops_t pci_fileops = {
+    0,
+    0,
+    pci_write_file,
+    pci_read_file,
+};
+
 void pci_make_file(uint32_t class, uint8_t bus, uint8_t slot, uint8_t func){
     char str[256] = "/dev/pci/\0";
     char *dev = classes[class >> 8][class & 0xf];
@@ -76,8 +84,9 @@ void pci_make_file(uint32_t class, uint8_t bus, uint8_t slot, uint8_t func){
         strcpy(str, cpy);
         strcpy(num, cpy + strlen(cpy));
         file = fcreate(cpy, 0);
-        file->read = pci_read_file;
-        file->write = pci_write_file;
+        // file->read = pci_read_file;
+        // file->write = pci_write_file;
+        file->fileops = &pci_fileops;
         if(tries >= 254){
             mlog(MODULE_NAME, "Failed to make PCI file for device!\n", MLOG_PRINT);
             return;

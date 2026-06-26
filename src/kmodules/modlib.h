@@ -76,7 +76,7 @@ typedef struct virtual_file{
     int (*readdir)(struct virtual_file* file, struct virtual_file *buffer, uint32_t count, uint32_t offset);
     
     uint32_t id;//for use in drivers
-    void *ptr; //also for use in drivers
+    void *private; //also for use in drivers
     uint32_t size;
     uint32_t offset; //for use in drivers
     

@@ -40,10 +40,10 @@ int read_initrd(initrd_t *initrd){
         if(!tmp){
             mlog("INITRD", "Failed to read critical boot file: %s\n", MLOG_PRINT, file->filename);
         }
-        if(tmp->ptr){
-            kfree(tmp->ptr);
+        if(tmp->private){
+            kfree(tmp->private);
         }
-        tmp->ptr = (archive + offset + sizeof(USTAR_file_t));
+        tmp->private = (archive + offset + sizeof(USTAR_file_t));
         tmp->size = fsize_pgs * 4096;
         // printf("%s, %d, %d\n", final_fname, filesize, fsize_pgs);
         offset += (((filesize + 511) / 512) + 1) * 512;

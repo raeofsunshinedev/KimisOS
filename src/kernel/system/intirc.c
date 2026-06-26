@@ -17,7 +17,7 @@ int is_num(char c){
 
 void initrc_read(vfile_t *file){
     mlog("KERNEL", "Reading initrc:\n", MLOG_PRINT);
-    char *ptr = file->ptr;
+    char *ptr = file->private;
     if(!file || !ptr){
         mlog("KERNEL", "Failed to read initrc!\n", MLOG_PRINT);
         return;
@@ -67,7 +67,7 @@ void initrc_read(vfile_t *file){
                 printf("Error: Could not find module in Initrc.conf: %s\n", module_name);
                 continue;
             }
-            module_start(module->ptr);
+            module_start(module->private);
         }
         else if(!strcmp(statement, "MOUNT")){
             char mount_src_name[512] = {0};
