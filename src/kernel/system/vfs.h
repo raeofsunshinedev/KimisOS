@@ -19,8 +19,8 @@ typedef struct fileops{
     int (*read)(struct virtual_file *file_entry, void *data, uint32_t offset, uint32_t count);
     struct virtual_file *(*open)(char *path);
     void (*close)(struct virtual_file *file);
-    int (*readdir)(struct virtual_file* file, struct virtual_file *buffer, uint32_t count, uint32_t offset);
-    // struct virtual_file **(*lookup)(char *name);
+    // int (*readdir)(struct virtual_file* file, struct virtual_file *buffer, uint32_t count, uint32_t offset);
+    struct virtual_file *(*rfopen)(char *name);
 } fileops_t;
 
 typedef struct virtual_file{
@@ -37,14 +37,14 @@ typedef struct virtual_file{
     
 }vfile_t;
 
-// vfile_t *lookup(char *name, vfile_t dir);
+// vfile_t *rfopen(char *name, vfile_t dir);
 vfile_t *fcreate(char *path, FS_FILE_FLAGS flags);
 int fdelete(vfile_t* file_entry);
 int fwrite(vfile_t *file_entry, void *byte_array, uint32_t offset, uint32_t count);
 int fread(vfile_t *file_entry, void *byte_array, uint32_t offset, uint32_t count);
-int readdir(vfile_t* file, vfile_t *buffer, uint32_t offset, uint32_t count);
+// int readdir(vfile_t* file, vfile_t *buffer, uint32_t offset, uint32_t count);
 
 vfile_t *vfcreate(vfile_t *parent, char *relpath, FS_FILE_FLAGS flags);
-vfile_t *lookup(char *name, vfile_t *dir);
+vfile_t *rfopen(char *name, vfile_t *dir);
 
 vfile_t *fopen(char *path);

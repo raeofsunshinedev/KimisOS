@@ -42,31 +42,45 @@ vfile_t *vfcreate(vfile_t *parent_dir, char *relpath, FS_FILE_FLAGS flags){
         new_file = parent_dir->fileops->create(name, flags);
     }
     else{
-        vfile_t *new_parent = lookup(name, parent_dir);
+        vfile_t *new_parent = rfopen(name, parent_dir);
         if(!new_parent){
             kfree(name);
             return 0;
         }
         new_file = vfcreate(new_parent, name+name_index+1, flags);
+        fclose(new_parent);
     }
     kfree(name);
     return new_file;
 }
 
 int fdelete(vfile_t *file_entry){
-    return 0;
+    if(!file_entry || !file_entry->fileops || !file_entry->fileops->delete){
+        return 0;
+    }
+    return file_entry->fileops->delete(file_entry);
 }
 
 int fwrite(vfile_t *file_entry, void *byte_array, uint32_t offset, uint32_t count){
-    return 0;
+    if(!file_entry || !file_entry->fileops || !file_entry->fileops->write ||!byte_array || count == 0){
+        return 0;
+    }
+    return file_entry->fileops->write(file_entry, byte_array, offset, count);
 }
 
 int fread(vfile_t *file_entry, void *byte_array, uint32_t offset, uint32_t count){
-    return 0;
+    if(!file_entry || !file_entry->fileops || !file_entry->fileops->read || !byte_array || count == 0){
+        return 0;
+    }
+    return file_entry->fileops->read(file_entry, byte_array, offset, count);
 }
 
-vfile_t *lookup(char *name, vfile_t *dir){
-    return 0;
+//fopen but relative to *dir
+vfile_t *rfopen(char *name, vfile_t *dir){
+    if(!dir || !name || !dir->fileops || !dir->fileops->rfopen){
+        return 0;
+    }
+    return dir->fileops->rfopen(name);
 }
 
 int readdir(vfile_t* file, vfile_t* buffer, uint32_t offset, uint32_t count){
@@ -74,6 +88,15 @@ int readdir(vfile_t* file, vfile_t* buffer, uint32_t offset, uint32_t count){
 }
 
 vfile_t *fopen(char *name){
-    
+    if(!name){
+        return 0;
+    }
+    vfile_t *root = get_root_dir();
+    return root->fileops->open(name + (name[0] == '/'));
+}
+
+vfile_t *fclose(vfile_t *file){
+    if(!file || !file->fileops || !file->fileops->close);
+    file->fileops->close(file);
     return 0;
 }
