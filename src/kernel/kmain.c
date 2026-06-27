@@ -28,7 +28,7 @@ void sysinit(){
     vfile_t *initrc = fopen("/boot/initrc.conf");
     mlog("RAE", "\033[1;32mDid you remember to migrate your modules to the new API?\033[0m\n", MLOG_PRINT);
     if(initrc){
-        mlog("KERNEL", "Found initrc", MLOG_PRINT);
+        mlog("KERNEL", "Found initrc\n", MLOG_PRINT);
         initrc_read(initrc);
     }
     else{
@@ -58,18 +58,17 @@ extern void kmain(kernel_info_t *kernel_info){
     pic_setmask(0x0, PIC1_DATA);
     pic_setmask(0x0, PIC2_DATA);
     
-    // fcreate("/dev", FS_FILE_IS_DIR);
-    // fcreate("/dev/disk", FS_FILE_IS_DIR);
-    // fcreate("/tmp", FS_FILE_IS_DIR);
-    // fcreate("/boot", FS_FILE_IS_DIR);
+    fcreate("/dev", FS_FILE_IS_DIR);
+    fcreate("/dev/disk", FS_FILE_IS_DIR);
+    fcreate("/tmp", FS_FILE_IS_DIR);
+    fcreate("/boot", FS_FILE_IS_DIR);
     mlog("KERNEL", "Initializing Scheduler & starting PID 1\n", MLOG_PRINT);
     boot_info = kernel_info;
     scheduler_init();
-    disable_interrupts();
     //scheduler doesn't work if there is no PID0, and I don't know why.
     thread_start(pid0);
     thread_start(sysinit);
-    for(;;);
+    // for(;;);
     enable_interrupts();
     for(;;);//we actually **shouldn't** return, like, ever. That's bad.
     return;

@@ -39,6 +39,7 @@ int read_initrd(initrd_t *initrd){
         vfile_t *tmp = fcreate(final_fname, 0);
         if(!tmp){
             mlog("INITRD", "Failed to read critical boot file: %s\n", MLOG_PRINT, file->filename);
+            return 1;
         }
         if(tmp->private){
             kfree(tmp->private);
@@ -48,4 +49,5 @@ int read_initrd(initrd_t *initrd){
         // printf("%s, %d, %d\n", final_fname, filesize, fsize_pgs);
         offset += (((filesize + 511) / 512) + 1) * 512;
     }
+    return 0;
 }

@@ -17,11 +17,11 @@ int is_num(char c){
 
 void initrc_read(vfile_t *file){
     mlog("KERNEL", "Reading initrc:\n", MLOG_PRINT);
-    char *ptr = file->private;
-    if(!file || !ptr){
+    if(!file || !file->private){
         mlog("KERNEL", "Failed to read initrc!\n", MLOG_PRINT);
         return;
     }
+    char *ptr = file->private;
     uint32_t size = file->size;
     char statement[512];
     uint32_t i = 0;

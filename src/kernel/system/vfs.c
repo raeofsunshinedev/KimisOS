@@ -14,7 +14,9 @@
 // }
 
 vfile_t *fcreate(char *path, FS_FILE_FLAGS flags){
-    vfcreate(get_root_dir(), path, flags);
+    // return 0;
+    vfile_t *returnable = vfcreate(get_root_dir(), path, flags);
+    return 0;
 }
 
 vfile_t *vfcreate(vfile_t *parent_dir, char *relpath, FS_FILE_FLAGS flags){
@@ -45,9 +47,11 @@ vfile_t *vfcreate(vfile_t *parent_dir, char *relpath, FS_FILE_FLAGS flags){
     else{
         vfile_t *new_parent = rfopen(name, parent_dir);
         if(!new_parent){
+            // printf("No new parent found!\n");
             kfree(name);
             return 0;
         }
+        // printf("Recursed\n");
         new_file = vfcreate(new_parent, name+name_index+1, flags);
         fclose(new_parent);
     }

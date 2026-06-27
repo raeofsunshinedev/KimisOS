@@ -86,7 +86,7 @@ void pci_make_file(uint32_t class, uint8_t bus, uint8_t slot, uint8_t func){
         file = fcreate(cpy, 0);
         // file->read = pci_read_file;
         // file->write = pci_write_file;
-        if(file == 0) continue;
+        if(file == 0) break;
         file->fileops = &pci_fileops;
         if(tries >= 254){
             mlog(MODULE_NAME, "Failed to make PCI file for device!\n", MLOG_PRINT);
