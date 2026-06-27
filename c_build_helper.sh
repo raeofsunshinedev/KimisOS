@@ -1,4 +1,4 @@
-CFLAGS="-g -c -m32 -fno-pie -mno-sse -O3 -D __bits__=32 -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast -Wno-incompatible-pointer-types -Wno-address-of-packed-member -Wno-discarded-qualifiers -fno-stack-protector -mno-red-zone -mno-sse -mno-sse2 -ffreestanding -nostdlib -mno-mmx"
+CFLAGS="-g -c -m32 -fno-pie -mno-sse -O3 -D __bits__=32 -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast -Wno-incompatible-pointer-types -fno-stack-protector -mno-red-zone -mno-sse -mno-sse2 -ffreestanding -nostdlib -mno-mmx"
 LDFLAGS_i386="-Ttext 0xc0000000 --oformat binary -melf_i386"
 
 cd src/kernel/
