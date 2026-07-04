@@ -63,13 +63,22 @@ vfile_t *resolve_path(char *pathname, vfile_t *start, uint32_t get_last_child){
         path_tokens[pathname_entries++] = pathtok;
     }
     
-    vfile_t **buffer = (vfile_t **)start->private;
+    // vfile_t **buffer = (vfile_t **)start->private;
     vfile_t *entry = start;
+    char *current_path = pathname;
     for(int i = 0; i < pathname_entries - !get_last_child; i++){
-        printf("%s", path_tokens[i]);
         entry = search_dir(path_tokens[i], entry);
+        current_path += strlen(path_tokens[i]) + 1;
+        
         if(!entry){
             break;
+        }
+        if(entry->flags & FS_FILE_MOUNT){
+            if(!get_last_child){
+                entry = 0;
+                break;
+            }
+            entry->fileops->rfopen(current_path, entry);
         }
     }
     kfree(path);
@@ -84,6 +93,12 @@ char *get_filename(char *path){
     return filename;
 }
 
+void ramfs_resize(vfile_t *file, uint32_t new_size_bytes){
+    if(new_size_bytes == file->size) return;
+    uint32_t new_size_pages = (new_size_bytes + PAGE_SIZE_BYTES - 1)/PAGE_SIZE_BYTES;
+    printf("New page count: %d from %d\n", new_size_pages, new_size_bytes);
+}
+
 vfile_t *ramfs_create(char *path, FS_FILE_FLAGS flags){
     if(!path){
         return 0;
@@ -93,7 +108,7 @@ vfile_t *ramfs_create(char *path, FS_FILE_FLAGS flags){
         mlog(MODULE_NAME, "Could not locate parent directory for %s\n", MLOG_PRINT, path);
     }
     get_filename(path);
-    
+    ramfs_resize(parent, 8191);
     return 0;
 }
 
