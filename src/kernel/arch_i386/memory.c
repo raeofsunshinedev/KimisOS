@@ -114,6 +114,7 @@ int pm_init(kernel_info_t *kernel_info){
     }
 }
 void map(void *vaddr, void *paddr, uint32_t flags){
+    asm("cli");
     uint32_t pd_index = (uint32_t)vaddr >> 22;
     uint32_t pt_index = (uint32_t)vaddr >> 12 & 0x3ff;
     
@@ -129,6 +130,7 @@ void map(void *vaddr, void *paddr, uint32_t flags){
     // printf("%x %x\n", vaddr, paddr);
     pt[pt_index] = (uint32_t)paddr | flags;
     asm volatile("invlpg (%0)  " : : "b"(vaddr) : "memory");
+    asm("sti");
 }
 void unmap(void *vaddr){
     uint32_t pd_index = (uint32_t)vaddr >> 22;
@@ -182,6 +184,7 @@ void *get_new_page(uint32_t flags){
     map((void *)paddr+(i*4096), (void *)paddr, flags);
 }
 void *kmalloc(uint32_t size_pgs){
+    asm("cli");
     uint32_t i = 0xc0000000 >> 12; //4mb/4096 (start search at 1mb line)
     while(i < (1 << 22)){
         uint8_t found = 1;
@@ -200,8 +203,10 @@ void *kmalloc(uint32_t size_pgs){
             uint32_t physaddr = pm_alloc();
             map((void *)((i + j) << 12), (void*)physaddr, flags);
         }
+        asm("sti");
         return (void*)(i << 12);
     }
+    asm("sti");
     return 0;
 }
 void *kmalloc_page_paddr(uint32_t paddr, uint32_t size_pgs){
