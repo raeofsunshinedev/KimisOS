@@ -83,6 +83,10 @@ void vprintf(char *string, va_list vars){
                     num = va_arg(vars, int32_t);
                     printf((char[]){num, 0});
                     continue;
+                case 'b':
+                    string++;
+                    num = va_arg(vars, int32_t);
+                    printf(num ? "true" : "false");
             }
         }
         outb(com_ports[0], *string);
