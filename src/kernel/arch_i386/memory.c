@@ -15,6 +15,7 @@ mmap_entry_t mmap;
 uint32_t mmap_entry_c;
 
 uint32_t pm_alloc(){
+    asm("cli");
     for(uint32_t i = 0; i < mmap_count; i++){
         for(int j = 0; j < 8; j++){
             if(!(pm_map[i] & (1 << j))){
@@ -23,8 +24,11 @@ uint32_t pm_alloc(){
             }
         }
     }
+    return 0;
+    asm("sti");
 }
 uint32_t pm_alloc_index(uint32_t index){
+    asm("cli");
     for(uint32_t i = 0; i < 2; i++){
         for(int j = 0; j < 8; j++){
             // if(!(pm_map[i] & (1 << j))){
@@ -33,8 +37,10 @@ uint32_t pm_alloc_index(uint32_t index){
         }
     }
     return (index << 3) << 12;
+    asm("sti");
 }
 uint32_t pm_alloc_64kaligned(){
+    asm("cli");
     uint32_t cont = 0;
     uint32_t current = 0;
     for(uint32_t i = 0; i < mmap_count; i++){
@@ -56,6 +62,8 @@ uint32_t pm_alloc_64kaligned(){
         current = i;
         cont++;
     }
+    return 0;
+    asm("sti");
 }
 void pm_free(uint32_t address){
     pm_map[address >> 15] &= ~(1 << ((address>>12) & 7));
