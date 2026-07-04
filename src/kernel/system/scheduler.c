@@ -72,6 +72,7 @@ cpu_registers_t *schedule(cpu_registers_t *regs){
 }
 
 uint32_t spawn_new_process(cpu_registers_t defaultregs, char **argv, uint32_t argc, void *cr3){
+    asm("cli");
     uint32_t i = current_pid;
     while(processes[i].flags.present){
         i++;
@@ -96,6 +97,7 @@ uint32_t spawn_new_process(cpu_registers_t defaultregs, char **argv, uint32_t ar
     new_proc.max_descriptors = DEFAULT_FD_MAX;
     processes[i] = new_proc;
     add_process_queue(i);
+    asm("sti");
     return i;
 }
 
