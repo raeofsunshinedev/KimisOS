@@ -57,7 +57,7 @@ extern void kmain(kernel_info_t *kernel_info){
     pic_init(0x20);
     pic_setmask(0x0, PIC1_DATA);
     pic_setmask(0x0, PIC2_DATA);
-    
+    vfs_init();
     fcreate("/dev", FS_FILE_IS_DIR);
     fcreate("/dev/disk", FS_FILE_IS_DIR);
     fcreate("/tmp", FS_FILE_IS_DIR);

@@ -37,6 +37,8 @@ typedef struct virtual_file{
     
 }vfile_t;
 
+void vfs_init();
+
 // vfile_t *rfopen(char *name, vfile_t dir);
 vfile_t *fcreate(char *path, FS_FILE_FLAGS flags);
 int fdelete(vfile_t* file_entry);

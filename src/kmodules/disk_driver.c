@@ -379,7 +379,8 @@ int ata_read(vfile_t *file, uint8_t *ptr, uint32_t offset, uint32_t count) {
     transferring_pid = cpid;
     
     outb(bm_base, 0x09); 
-    asm("sti");
+    // asm("sti"); // TODO: Make it so that instead of sti(), restore interrupt flag
+    if(!api(MODULE_API_IS_INTERRUPT)) asm("sti");
     
     uint8_t status = inb(ctrl_base);
     uint8_t bm_status = inb(bm_base + 2);
