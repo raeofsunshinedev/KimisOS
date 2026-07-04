@@ -80,7 +80,7 @@ int pm_init(kernel_info_t *kernel_info){
     // mlog("KERNEL", "   BASE  | LENGTH | TYPE\n           --------|--------|----\n", MLOG_PRINT);
     for(uint32_t i = 0; i < kernel_info->mmap_entry_count; i++){
         for(uint32_t j = 0; j < (mmap[i].entry_length >> 12); j++){
-            if(mmap[i].entry_base + (j << 12) <= mmap[i-1].entry_base + mmap[i-1].entry_length){
+            if(i != 0 && mmap[i].entry_base + (j << 12) <= mmap[i-1].entry_base + mmap[i-1].entry_length){
                 continue;
             }
             // printf("j = %d\nIndex:%x\n", j, (mmap[i].entry_base >> 12) + (j & 3));
