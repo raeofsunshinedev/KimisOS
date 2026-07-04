@@ -21,13 +21,16 @@ bits 16
 ;Load part2                                 |x|
 ;Get video mode information                 |0|
 ;Set video mode                             |0|
-;get memory map                             |0|
-;enable paging                              |0|
-;read filesystem                            |0|
-;load kernel                                |0|
-;parse ELF format                           |0|
-;pass memory and video information to kernel|0|
-;relocate and jump to kernel                |0|
+;get memory map                             |x|
+;enable paging                              |x|
+;read filesystem                            |x|
+;load kernel                                |x|
+;parse ELF format                           |x|
+;pass memory and video information to kernel|x|
+;relocate and jump to kernel                |x|
+
+;TODO 7/4/26
+;Remember to ZERO THE BSS
 
 jump:
     jmp short start

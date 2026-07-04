@@ -4,6 +4,12 @@
 #include "../drivers/serial.h"
 #include "interrupts.h"
 
+#define true 1
+#define false 0
+
+#define null 0
+
+
 #define MLOG_DEBUG 1
 #define MLOG_PRINT 2
 #define MLOG_WARN 3
