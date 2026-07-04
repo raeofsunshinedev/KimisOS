@@ -182,6 +182,7 @@ void *get_new_page(uint32_t flags){
         i++;
     }
     map((void *)paddr+(i*4096), (void *)paddr, flags);
+    return (void *)(paddr+i*4096);
 }
 void *kmalloc(uint32_t size_pgs){
     asm("cli");
