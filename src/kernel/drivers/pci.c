@@ -89,7 +89,7 @@ void pci_make_file(uint32_t class, uint8_t bus, uint8_t slot, uint8_t func){
         // file->write = pci_write_file;
         // if(file == 0) break;
         if(!file){
-            mlog(MODULE_NAME, "Failed to make file for PCI device!\n", MLOG_PRINT);
+            mlog(MODULE_NAME, "Failed to make file for PCI device %s!\n", MLOG_PRINT, cpy);
             return;
         }
         // printf("ASSERT file == null: %d\n", file == 0);

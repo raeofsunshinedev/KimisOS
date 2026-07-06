@@ -25,10 +25,11 @@ vfile_t *fcreate(char *path, FS_FILE_FLAGS flags){
     spinlock_acquire(vfs_lock);
     vfile_t *returnable = vfcreate(get_root_dir(), path, flags);
     spinlock_release(vfs_lock);
-    return 0;
+    return returnable;
 }
 
 vfile_t *vfcreate(vfile_t *parent_dir, char *relpath, FS_FILE_FLAGS flags){
+    // printf("%s\n", relpath);
     if(!relpath){
         return 0;
     }
@@ -37,6 +38,7 @@ vfile_t *vfcreate(vfile_t *parent_dir, char *relpath, FS_FILE_FLAGS flags){
     strcpy(relpath, name);
     if(name[0] == '/') name++;//first slash just indicates that it's an absolute path, we don't want to include that into the filename.
     uint32_t name_length = strlen(name);
+    if(name[name_length-1] == '/') name[name_length - 1] = 0;
     uint32_t name_index = 0;
     uint32_t subpath_start = 0;
     
@@ -51,21 +53,23 @@ vfile_t *vfcreate(vfile_t *parent_dir, char *relpath, FS_FILE_FLAGS flags){
     
     if(name_index >= name_length){//if there is no other directory
         // printf("Creating file; name: %s\n", name + subpath_start);
-        new_file = parent_dir->fileops->create(name, flags);
+        new_file = parent_dir->fileops->create(parent_dir, name, flags);
     }
     else{
         vfile_t *new_parent = rfopen(name, parent_dir);
         if(!new_parent){
-            // printf("No new parent found!\n");
+            printf("No new parent found from name: %s!\n", name);
             kfree(name);
             return 0;
         }
-        // printf("Recursed\n");
+        // printf("%s", new_parent->name);
         new_file = vfcreate(new_parent, name+name_index+1, flags);
-        fclose(new_parent);
+        // fclose(new_parent);
     }
     kfree(name);
+    // printf("Returning new file!\n");
     return new_file;
+    // return 0;
 }
 
 int fdelete(vfile_t *file_entry){

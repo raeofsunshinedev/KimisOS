@@ -13,7 +13,7 @@ typedef enum fs_flags{
 }FS_FILE_FLAGS;
 
 typedef struct fileops{
-    struct virtual_file *(*create)(char *path, FS_FILE_FLAGS flags);
+    struct virtual_file *(*create)(struct virtual_file *parent, char *path, FS_FILE_FLAGS flags);
     int (*delete)(struct virtual_file *file_entry);
     int (*write)(struct virtual_file *file_entry, void *data, uint32_t offset, uint32_t count);
     int (*read)(struct virtual_file *file_entry, void *data, uint32_t offset, uint32_t count);
