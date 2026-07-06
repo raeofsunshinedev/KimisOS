@@ -125,7 +125,8 @@ vfile_t *ramfs_create(vfile_t *root, char *path, FS_FILE_FLAGS flags){
         return 0;
     }
     if(path[0] == '/') path++;
-    vfile_t *parent = resolve_path(path, root, false);
+    // vfile_t *parent = resolve_path(path, root, false);
+    vfile_t *parent = root;
     if(!parent || !parent->flags & FS_FILE_IS_DIR){
         mlog(MODULE_NAME, "Could not locate parent directory for %s\n", MLOG_PRINT, path);
         path--;
