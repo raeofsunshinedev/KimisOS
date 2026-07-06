@@ -11,7 +11,7 @@ fileops_t ramfs_ops =
     ramfs_delete,
     ramfs_write,
     ramfs_read,
-    ramfs_open,
+    // ramfs_open,
     ramfs_close,
     ramfs_rfopen,
 };
@@ -117,6 +117,7 @@ int ramfs_resize(vfile_t *file, uint32_t new_size_bytes){
         file->private = new_ptr;
     }while(0);
     file->size = new_size_bytes;
+    // printf("New file size for file: %s, %d\n", file->name, file->size);
     return new_size_bytes;
 }
 
@@ -132,7 +133,7 @@ vfile_t *ramfs_create(vfile_t *root, char *path, FS_FILE_FLAGS flags){
         path--;
         return 0;
     }
-    char *new_name = get_filename(path);
+    char *new_name = path;
     // printf("%d\n", parent->size);
     vfile_t **dirents = (vfile_t **)parent->private;
     uint32_t insert_index = 0;
@@ -162,21 +163,44 @@ vfile_t *ramfs_create(vfile_t *root, char *path, FS_FILE_FLAGS flags){
     dirents[parent->size/(sizeof(vfile_t*)) - 1] = new_file;
     new_file->fileops = &ramfs_ops;
     path--;
+    // printf("Returning file with name: %s\n", new_file->name);
     return new_file;
+}
+
+int ramfs_translate_dir(vfile_t *file, void *buffer, uint32_t offset, uint32_t count){
+    uint32_t dirents_requested = count / sizeof(vfile_t);
+    uint32_t dirents_availible = file->size / sizeof(vfile_t *);
+    printf("Sizeof vfile_t %d with %d entries fitting in buffer, and %d entries in file %s\n", sizeof(vfile_t), dirents_requested, dirents_availible, file->name);
+    uint32_t to_copy = unsigned_min(dirents_availible, dirents_requested);
+    vfile_t **dirents = (vfile_t **)file->private;
+    for(uint32_t i = 0; i < to_copy; i++){
+        // printf("From: %x to %x\n", dirents[i], buffer + i * sizeof(vfile_t));
+        memcpy(dirents[i], buffer + i * sizeof(vfile_t), sizeof(vfile_t));
+    }
+    return count;
 }
 
 int ramfs_delete(vfile_t *file){
     return 0;
 }
 int ramfs_write(vfile_t *file, char *buffer, uint32_t offset, uint32_t count){
-    return 0;
+    //file->private can be null here, as ramfs_resize will handle assigning if it is not already assigned
+    if(!file || !buffer || (file->flags & (FS_FILE_READ_ONLY | FS_FILE_IS_DIR | FS_FILE_MOUNT))) return 0;
+    if(!ramfs_resize(file, count + offset)) return 0;
+    memcpy(buffer, file->private + offset, count);
+    return count;
 }
 int ramfs_read(vfile_t *file, char *buffer, uint32_t offset, uint32_t count){
-    return 0;
+    if(!file || !buffer || !file->private || file->flags & (FS_FILE_MOUNT)) return 0;
+    if(file->flags & FS_FILE_IS_DIR){
+        return ramfs_translate_dir(file, buffer, offset, count);
+    }
+    memcpy(file->private + offset, buffer, count);
+    return count;
 }
-vfile_t *ramfs_open(char *path){
-    return 0;
-}
+// vfile_t *ramfs_open(char *path){
+//     return 0;
+// }
 void ramfs_close(vfile_t *file){
     file->refcount--;
     if(file->refcount < 0) file->refcount = 0;

@@ -52,7 +52,7 @@ vfile_t *vfcreate(vfile_t *parent_dir, char *relpath, FS_FILE_FLAGS flags){
     // printf("%d, %s,", subpath_start, name + subpath_start);
     
     if(name_index >= name_length){//if there is no other directory
-        // printf("Creating file; name: %s\n", name + subpath_start);
+        // printf("Creating file; name: %s\n", name);
         new_file = parent_dir->fileops->create(parent_dir, name, flags);
     }
     else{
@@ -80,7 +80,8 @@ int fdelete(vfile_t *file_entry){
     spinlock_release(vfs_lock);
     return file_entry->fileops->delete(file_entry);
 }
-
+//Is expected to overwrite, not append if it is an actual file
+//Devices and anything Not A File is exempt (i.e. Blockdevs, chardevs, etc)
 int fwrite(vfile_t *file_entry, void *byte_array, uint32_t offset, uint32_t count){
     if(!file_entry || !file_entry->fileops || !file_entry->fileops->write ||!byte_array || count == 0){
         return 0;
@@ -112,7 +113,10 @@ vfile_t *fopen(char *name){
         return 0;
     }
     vfile_t *root = get_root_dir();
-    return root->fileops->open(name + (name[0] == '/'));
+    if(!strcmp(name, "/")){
+        return root;
+    }
+    return root->fileops->rfopen(name + (name[0] == '/'), root);
 }
 
 vfile_t *fclose(vfile_t *file){

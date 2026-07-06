@@ -33,6 +33,23 @@ void vector_set(uint32_t pos, vector_t *vector, void *new_element);
 void vector_push(vector_t *vector, void *new_element);
 void vector_pop(uint32_t pos, vector_t *vector, void *element);
 uint32_t atoi(char *str, uint32_t base);
+inline int32_t signed_max(int32_t i1, int32_t i2){
+    if(i1 > i2) return i1;
+    else return i2;
+}
+inline uint32_t unsigned_max(uint32_t i1, uint32_t i2){
+    if(i1 > i2) return i1;
+    else return i2;
+}
+inline int32_t signed_min(int32_t i1, int32_t i2){
+    if(i1 < i2) return i1;
+    else return i2;
+}
+inline uint32_t unsigned_min(uint32_t i1, uint32_t i2){
+    if(i1 < i2) return i1;
+    else return i2;
+}
+
 
 
 

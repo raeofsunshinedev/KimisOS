@@ -1,6 +1,6 @@
 #pragma once
 #include <stdint.h>
-
+#include "../shared/spinlock.h"
 typedef enum fs_flags{
     FS_FILE_READ_ONLY = 1,
     FS_FILE_HIDDEN = 2,
@@ -17,16 +17,17 @@ typedef struct fileops{
     int (*delete)(struct virtual_file *file_entry);
     int (*write)(struct virtual_file *file_entry, void *data, uint32_t offset, uint32_t count);
     int (*read)(struct virtual_file *file_entry, void *data, uint32_t offset, uint32_t count);
-    struct virtual_file *(*open)(char *path);
+    // struct virtual_file *(*open)(char *path);
     void (*close)(struct virtual_file *file);
     // int (*readdir)(struct virtual_file* file, struct virtual_file *buffer, uint32_t count, uint32_t offset);
     struct virtual_file *(*rfopen)(char *name, struct virtual_file *parent);
 } fileops_t;
 
+//note: this is EXACTLY 256 bytes. This is for simplicity's sake.
+//PLEASE if you MUST reorganize or add fields, try and keep it to a power of 2?
 typedef struct virtual_file{
     char name[212];
     uint16_t flags;
-    
     fileops_t *fileops;
     uint32_t refcount; //filesystem MUST remain operational until all child refcounts == 0
     
@@ -35,6 +36,12 @@ typedef struct virtual_file{
     uint32_t size; //should be in bytes
     uint32_t offset; //for use in drivers
     
+    uint8_t owner_uid;
+    uint8_t owner_gid;
+    uint32_t last_modified;
+    uint32_t created;
+    uint16_t permissions; //same format as linux
+    spinlock_t lock;
 }vfile_t;
 
 void vfs_init();
