@@ -79,9 +79,6 @@ uint32_t module_api(uint32_t func, ...){
         case MODULE_API_CREAT:
             name = va_arg(vars, char *);
             FS_FILE_FLAGS ftype = va_arg(vars, FS_FILE_FLAGS);
-            void *arg1, *arg2;
-            arg1 = va_arg(vars, void *);
-            arg2 = va_arg(vars, void *);
             return_value = (uint32_t)fcreate(name, ftype);
             break;
         case MODULE_API_DELET:
@@ -90,15 +87,8 @@ uint32_t module_api(uint32_t func, ...){
             break;
         case MODULE_API_OPEN:
             name = va_arg(vars, char *);
+            printf("Requested file: %s\n", name);
             return_value = (uint32_t)fopen(name);
-            break;
-        case MODULE_API_READDIR:
-            file = va_arg(vars, vfile_t *);
-            buffer = va_arg(vars, void *);
-            offset = va_arg(vars, uint32_t);
-            count = va_arg(vars, uint32_t);
-            // return_value = readdir(file, buffer, offset, count);
-            return_value = 0;
             break;
         case MODULE_API_MAP:
             return_value = 0;

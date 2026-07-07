@@ -24,7 +24,6 @@ enum MODULE_API_FUNCS{
     MODULE_API_CREAT, //create a virtual file and assigns it to the the proper module (requires having a read and write function passed)
     MODULE_API_DELET, //delete a virtual file
     MODULE_API_OPEN,
-    MODULE_API_READDIR,
     MODULE_API_MAP, //map physical address to virtual address
     MODULE_API_UNMAP, //unmap physical address to virtual address
     MODULE_API_PADDR, //get physical address of memory

@@ -34,15 +34,23 @@ void sysinit(){
     else{
         mlog("KERNEL", "ERROR: Initrc could not be located!\n", MLOG_PRINT);
     }
-    // vfile_t *disk_dir = fget_file("/dev/disk");
-    // if(disk_dir == 0){
-    //     mlog("KERNEL", "Error: /dev/disk does not exist\n", MLOG_PRINT);
-    // }
-    // vfile_t **dir_data = disk_dir->access.data.ptr;
-    // for(uint32_t i = 0; dir_data[i]; i++){
-    //     mlog("KERNEL", "Filename: %s\n", MLOG_PRINT, dir_data[i]->name);
+    
+    vfile_t *disk_dir = fopen("/dev/disk");
+    if(disk_dir == 0){
+        mlog("KERNEL", "Error: /dev/disk does not exist\n", MLOG_PRINT);
+    }
+    char *dir_data = kmalloc(1);
+    uint32_t byte_count = fread(disk_dir, dir_data, 0, 4096);
+    uint32_t file_count = byte_count/sizeof(vfile_t);
+    for(uint32_t i = 0; i < byte_count; i++){
+        if(dir_data[i] > 32 && dir_data[i] < 127){
+            printf("%c", dir_data[i]);
+        }
+        else{
+            printf("%d", dir_data[i]);
+        }
     //     vfs_detect_partitions(dir_data[i]);
-    // }
+    }
     // dispatch_message(0);
     printf("Bleh\n");
     //why did i stop working on this? what was wrong with this?

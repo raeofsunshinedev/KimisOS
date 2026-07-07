@@ -524,9 +524,17 @@ uint8_t ata_identify(uint32_t index, uint16_t disk){
     drives[index].PRDT = (void *)api(MODULE_API_KMALLOC_PADDR, prdt_phys, 16);
     itoa(ata_drives, fname + strlen(fname), 10);
     vfile_t *new_file = fcreate(api, fname, FS_FILE_SYSTEM);
-    new_file->read = ata_read;
-    new_file->write = ata_write;
-    new_file->id = index;
+    api(MODULE_API_PRINT, MODULE_NAME, "New File: %x, Name: %s\n", new_file, new_file->name);
+    //
+    //
+    //
+    //  RIGHT HERE
+    //
+    //
+    //
+    // new_file->read = ata_read;
+    // new_file->write = ata_write;
+    // new_file->id = index;
     puts(api, "KIDM", "Valid Drive!\n");
     return 0;
 }
@@ -599,8 +607,9 @@ void init(KOS_MAPI_FP module_api, uint32_t api_version){
     api(MODULE_API_ADDINT, 15, module_data.key, int_handler);
     api(MODULE_API_ADDINT, 14, module_data.key, int_handler);
     // api(MODULE_API_ADDINT, 0, module_data.key, int_handler);
-    vfile_t *pci_drive_dir = fopen(api, "/dev/pci/disk/");
+    vfile_t *pci_drive_dir = fopen(api, "/dev/pci/disk");
     if(!pci_drive_dir){
+        puts(api, MODULE_NAME, "Failed to open /dev/pci/disk\n");
         return;
     }
     // vfile_t **dir_data = (pci_drive_dir->ptr);
@@ -609,9 +618,10 @@ void init(KOS_MAPI_FP module_api, uint32_t api_version){
     
     vfile_t *dir_data = malloc(api, (PCI_SEARCH_COUNT * sizeof(vfile_t) + 4095)/4096);
     
-    api(MODULE_API_READDIR, pci_drive_dir, dir_data, 0, 128);
+    uint32_t file_count = api(MODULE_API_READ, pci_drive_dir, dir_data, 0, PCI_SEARCH_COUNT * sizeof(vfile_t))/sizeof(vfile_t);
+    api(MODULE_API_PRINT, MODULE_NAME, "File count: %x\n", file_count);
     
-    for(uint32_t i = 0; PCI_SEARCH_COUNT; i++){
+    for(uint32_t i = 0; i < file_count; i++){
         vfile_t *current_file = &(dir_data[i]);
         uint32_t class = 0;
         fread(api, current_file, &class, 0x8, 1);

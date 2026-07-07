@@ -126,7 +126,7 @@ void initrc_read(vfile_t *file){
             }
             if(!dispatch_message(MESSAGE_MOUNT_FS, to_mount, mount_dest, offset)){
                 mlog("INITRC", "Error: Could not mount device %s at %s", MLOG_PRINT, mount_src_name, mount_dest);
-                asm("int $13");
+                // asm("int $13");
             }
         }
         else if(!strcmp(statement, "END")){

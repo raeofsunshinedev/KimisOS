@@ -137,11 +137,11 @@ void pci_enumerate_bus(uint8_t bus){
 
 void pci_init(){
     mlog(MODULE_NAME, "Enumerating PCI Buses\n", MLOG_PRINT);
-    vfile_t *file = fcreate("dev/pci/", FS_FILE_IS_DIR);
-    fcreate("dev/pci/disk", FS_FILE_IS_DIR);
-    fcreate("dev/pci/net", FS_FILE_IS_DIR);
-    fcreate("dev/pci/video", FS_FILE_IS_DIR);
-    fcreate("dev/pci/bridge", FS_FILE_IS_DIR);
+    vfile_t *file = fcreate("/dev/pci/", FS_FILE_IS_DIR);
+    fcreate("/dev/pci/disk", FS_FILE_IS_DIR);
+    fcreate("/dev/pci/net", FS_FILE_IS_DIR);
+    fcreate("/dev/pci/video", FS_FILE_IS_DIR);
+    fcreate("/dev/pci/bridge", FS_FILE_IS_DIR);
     for(uint32_t i = 0 ; i < 256; i++){
         pci_enumerate_bus(i);
     }

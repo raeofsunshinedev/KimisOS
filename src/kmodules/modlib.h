@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include "../kernel/shared/spinlock.h"
 
 enum MODULE_API_FUNCS{
     
@@ -14,7 +15,6 @@ enum MODULE_API_FUNCS{
     MODULE_API_CREAT, //create a virtual file and assigns it to the the proper module (requires having a read and write function passed)
     MODULE_API_DELET, //delete a virtual file
     MODULE_API_OPEN,
-    MODULE_API_READDIR,
     MODULE_API_MAP, //map physical address to virtual address
     MODULE_API_UNMAP, //unmap physical address to virtual address
     MODULE_API_PADDR, //get physical address of memory
@@ -61,25 +61,40 @@ typedef enum fs_flags{
     FS_FILE_IS_DIR = 0x10,
     FS_FILE_ARCHIVE = 0x20,
     FS_FILE_PIPE = 0x40,
-    FS_FILE_LINK = 0x80
+    FS_FILE_LINK = 0x80,
+    FS_FILE_MOUNT = 0x100, // MUST be assigned to any file that represents a physical filesystem or physical device.
 }FS_FILE_FLAGS;
 
-typedef struct virtual_file{
-    char name[256];
-    FS_FILE_FLAGS flags;
+typedef struct fileops{
+    struct virtual_file *(*create)(struct virtual_file *parent, char *path, FS_FILE_FLAGS flags);
     int (*delete)(struct virtual_file *file_entry);
-    struct virtual_file *(*create)(char *path, FS_FILE_FLAGS flags);
     int (*write)(struct virtual_file *file_entry, void *data, uint32_t offset, uint32_t count);
     int (*read)(struct virtual_file *file_entry, void *data, uint32_t offset, uint32_t count);
-    struct virtual_file *(*open)(char *path);
-    // struct virtual_file **(*lookup)(char *name);
-    int (*readdir)(struct virtual_file* file, struct virtual_file *buffer, uint32_t count, uint32_t offset);
+    // struct virtual_file *(*open)(char *path);
+    void (*close)(struct virtual_file *file);
+    // int (*readdir)(struct virtual_file* file, struct virtual_file *buffer, uint32_t count, uint32_t offset);
+    struct virtual_file *(*rfopen)(char *name, struct virtual_file *parent);
+} fileops_t;
+
+//note: this is EXACTLY 256 bytes. This is for simplicity's sake.
+//PLEASE if you MUST reorganize or add fields, try and keep it to a power of 2?
+typedef struct virtual_file{
+    char name[212];
+    uint16_t flags;
+    fileops_t *fileops;
+    uint32_t refcount; //filesystem MUST remain operational until all child refcounts == 0
     
     uint32_t id;//for use in drivers
     void *private; //also for use in drivers
-    uint32_t size;
+    uint32_t size; //should be in bytes
     uint32_t offset; //for use in drivers
     
+    uint8_t owner_uid;
+    uint8_t owner_gid;
+    uint32_t last_modified;
+    uint32_t created;
+    uint16_t permissions; //same format as linux
+    spinlock_t lock;
 }vfile_t;
 
 inline void *malloc(KOS_MAPI_FP api, uint32_t size_pages){

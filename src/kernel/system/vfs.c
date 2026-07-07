@@ -3,7 +3,6 @@
 #include "../shared/kstdlib.h"
 #include "../shared/memory.h"
 #include "../shared/string.h"
-#include "../shared/spinlock.h"
 #define MODULE_NAME "KVFS"
 
 // !TODO: Modify code to become thread-safe
@@ -24,6 +23,7 @@ vfile_t *fcreate(char *path, FS_FILE_FLAGS flags){
     // return 0;
     spinlock_acquire(vfs_lock);
     vfile_t *returnable = vfcreate(get_root_dir(), path, flags);
+    printf("Making file: %s, %x\n", path, returnable);
     spinlock_release(vfs_lock);
     return returnable;
 }
@@ -116,6 +116,7 @@ vfile_t *fopen(char *name){
     if(!strcmp(name, "/")){
         return root;
     }
+    printf("Opening file: %s\n", name + (name[0] == '/'));
     return root->fileops->rfopen(name + (name[0] == '/'), root);
 }
 

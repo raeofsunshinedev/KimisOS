@@ -14,6 +14,7 @@ void *load_segment(program_entry_t entry, void *file_data, void *base_segment, u
     // printf("Base: %x\n", base_segment);
     if(entry.type == 1){
         if(((elf_header_t *)(file_data))->type == ELF_TYPE_SHARED){
+            //Overwrites data when sees free memory block; re-write to allocate before call
             if(base_segment == 0){
                 segment = kmalloc(entry.msize/4096 + 1);
                 base_segment = segment;
@@ -23,6 +24,7 @@ void *load_segment(program_entry_t entry, void *file_data, void *base_segment, u
                 uint32_t count = 1;
                 count += ((entry.vaddr+entry.msize) - entry.vaddr) ? 1 : 0;
                 count += entry.msize/4096 + 1;
+                printf("%x\n", segment);
                 for(uint32_t i = 0; i < count; i++){
                     map(segment + (i << 12)/4, (void *)pm_alloc(), PT_PRESENT | map_flags);
                 }

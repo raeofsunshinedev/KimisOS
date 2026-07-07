@@ -26,16 +26,19 @@ void ramfs_init(){
 }
 
 vfile_t *search_dir(char *subname, vfile_t *directory){
+    printf("Searching for: %s\n", subname);
     if(!directory) return 0;
     vfile_t **children = (vfile_t **)directory->private;
     if(!children){
         return 0;
     }
     for(int i = 0; i < directory->size / sizeof(vfile_t *); i++){
+        printf("Child name: %s\n", children[i]->name);
         if(children[i] && !strcmp(children[i]->name, subname)){
             return children[i];
         }
     }
+    
     return 0;
 }
 
@@ -177,7 +180,7 @@ int ramfs_translate_dir(vfile_t *file, void *buffer, uint32_t offset, uint32_t c
         // printf("From: %x to %x\n", dirents[i], buffer + i * sizeof(vfile_t));
         memcpy(dirents[i], buffer + i * sizeof(vfile_t), sizeof(vfile_t));
     }
-    return count;
+    return to_copy * sizeof(vfile_t);
 }
 
 int ramfs_delete(vfile_t *file){
