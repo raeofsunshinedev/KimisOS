@@ -8,6 +8,17 @@
 
 KOS_MAPI_FP api;
 
+int ata_read(vfile_t *file, uint8_t *ptr, uint32_t offset, uint32_t count);
+int ata_write(vfile_t *file, void *ptr, uint32_t offset, uint32_t count);
+fileops_t ide_fileops = {
+    0,
+    0,
+    ata_write,
+    ata_read,
+    0,
+    0,
+};
+
 /*
 TODO:
 Register module 
@@ -534,7 +545,8 @@ uint8_t ata_identify(uint32_t index, uint16_t disk){
     //
     // new_file->read = ata_read;
     // new_file->write = ata_write;
-    // new_file->id = index;
+    new_file->id = index;
+    new_file->fileops = &ide_fileops;
     puts(api, "KIDM", "Valid Drive!\n");
     return 0;
 }

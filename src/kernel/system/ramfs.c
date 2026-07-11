@@ -22,18 +22,15 @@ void ramfs_init(){
     mlog(MODULE_NAME, "Initializing VFS\n", MLOG_PRINT);
     root_dir.private = 0;
     root_dir.size = 0;
-    // printf("Sizeof VFILE_T: %d", sizeof(vfile_t));
 }
 
 vfile_t *search_dir(char *subname, vfile_t *directory){
-    printf("Searching for: %s\n", subname);
     if(!directory) return 0;
     vfile_t **children = (vfile_t **)directory->private;
     if(!children){
         return 0;
     }
     for(int i = 0; i < directory->size / sizeof(vfile_t *); i++){
-        printf("Child name: %s\n", children[i]->name);
         if(children[i] && !strcmp(children[i]->name, subname)){
             return children[i];
         }
@@ -120,7 +117,6 @@ int ramfs_resize(vfile_t *file, uint32_t new_size_bytes){
         file->private = new_ptr;
     }while(0);
     file->size = new_size_bytes;
-    // printf("New file size for file: %s, %d\n", file->name, file->size);
     return new_size_bytes;
 }
 
@@ -137,7 +133,6 @@ vfile_t *ramfs_create(vfile_t *root, char *path, FS_FILE_FLAGS flags){
         return 0;
     }
     char *new_name = path;
-    // printf("%d\n", parent->size);
     vfile_t **dirents = (vfile_t **)parent->private;
     uint32_t insert_index = 0;
     for(uint32_t i = 0; i < parent->size/sizeof(vfile_t *); i++){
@@ -166,18 +161,15 @@ vfile_t *ramfs_create(vfile_t *root, char *path, FS_FILE_FLAGS flags){
     dirents[parent->size/(sizeof(vfile_t*)) - 1] = new_file;
     new_file->fileops = &ramfs_ops;
     path--;
-    // printf("Returning file with name: %s\n", new_file->name);
     return new_file;
 }
 
 int ramfs_translate_dir(vfile_t *file, void *buffer, uint32_t offset, uint32_t count){
     uint32_t dirents_requested = count / sizeof(vfile_t);
     uint32_t dirents_availible = file->size / sizeof(vfile_t *);
-    printf("Sizeof vfile_t %d with %d entries fitting in buffer, and %d entries in file %s\n", sizeof(vfile_t), dirents_requested, dirents_availible, file->name);
     uint32_t to_copy = unsigned_min(dirents_availible, dirents_requested);
     vfile_t **dirents = (vfile_t **)file->private;
     for(uint32_t i = 0; i < to_copy; i++){
-        // printf("From: %x to %x\n", dirents[i], buffer + i * sizeof(vfile_t));
         memcpy(dirents[i], buffer + i * sizeof(vfile_t), sizeof(vfile_t));
     }
     return to_copy * sizeof(vfile_t);

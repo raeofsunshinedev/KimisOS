@@ -23,13 +23,11 @@ vfile_t *fcreate(char *path, FS_FILE_FLAGS flags){
     // return 0;
     spinlock_acquire(vfs_lock);
     vfile_t *returnable = vfcreate(get_root_dir(), path, flags);
-    printf("Making file: %s, %x\n", path, returnable);
     spinlock_release(vfs_lock);
     return returnable;
 }
 
 vfile_t *vfcreate(vfile_t *parent_dir, char *relpath, FS_FILE_FLAGS flags){
-    // printf("%s\n", relpath);
     if(!relpath){
         return 0;
     }
@@ -49,10 +47,8 @@ vfile_t *vfcreate(vfile_t *parent_dir, char *relpath, FS_FILE_FLAGS flags){
         name_index++;
     }
     name[name_index] = 0;
-    // printf("%d, %s,", subpath_start, name + subpath_start);
     
     if(name_index >= name_length){//if there is no other directory
-        // printf("Creating file; name: %s\n", name);
         new_file = parent_dir->fileops->create(parent_dir, name, flags);
     }
     else{
@@ -62,12 +58,10 @@ vfile_t *vfcreate(vfile_t *parent_dir, char *relpath, FS_FILE_FLAGS flags){
             kfree(name);
             return 0;
         }
-        // printf("%s", new_parent->name);
         new_file = vfcreate(new_parent, name+name_index+1, flags);
         // fclose(new_parent);
     }
     kfree(name);
-    // printf("Returning new file!\n");
     return new_file;
     // return 0;
 }
@@ -116,7 +110,6 @@ vfile_t *fopen(char *name){
     if(!strcmp(name, "/")){
         return root;
     }
-    printf("Opening file: %s\n", name + (name[0] == '/'));
     return root->fileops->rfopen(name + (name[0] == '/'), root);
 }
 
