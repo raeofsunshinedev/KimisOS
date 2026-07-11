@@ -69,26 +69,26 @@ uint32_t module_api(uint32_t func, ...){
             uint32_t count = va_arg(vars, uint32_t);
             return_value = fread(file, buffer, offset, count);
             break;
-        case MODULE_API_WRITE:
+            case MODULE_API_WRITE:
             file = va_arg(vars, vfile_t *);
             buffer = va_arg(vars, char *);
             offset = va_arg(vars, uint32_t), count = va_arg(vars, uint32_t);
+            count = va_arg(vars, uint32_t);
             return_value = fwrite(file, buffer, offset, count);
             break;
         case MODULE_API_CREAT:
             name = va_arg(vars, char *);
-            VFILE_TYPE ftype = va_arg(vars, VFILE_TYPE);
-            void *arg1, *arg2;
-            arg1 = va_arg(vars, void *);
-            arg2 = va_arg(vars, void *);
-            return_value = (uint32_t)fcreate(name, ftype, arg1, arg2);
+            FS_FILE_FLAGS ftype = va_arg(vars, FS_FILE_FLAGS);
+            return_value = (uint32_t)fcreate(name, ftype);
             break;
         case MODULE_API_DELET:
-            return_value = -1;
+            file = va_arg(vars, vfile_t *);
+            return_value = fdelete(file);
             break;
         case MODULE_API_OPEN:
             name = va_arg(vars, char *);
-            return_value = (uint32_t)fget_file(name);
+            printf("Requested file: %s\n", name);
+            return_value = (uint32_t)fopen(name);
             break;
         case MODULE_API_MAP:
             return_value = 0;

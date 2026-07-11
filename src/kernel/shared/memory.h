@@ -39,6 +39,8 @@
 #define KMALLOC_LINK_NEXT   2
 #define KMALLOC_LINK_LAST   4
 
+#define PAGE_SIZE_BYTES 4096
+
 typedef struct BIOS_data{
     uint16_t com_ports[4];
     uint16_t lpt_ports[3];

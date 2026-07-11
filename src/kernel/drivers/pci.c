@@ -4,6 +4,7 @@
 #include "../system/vfs.h"
 #include "../shared/string.h"
 #include "../shared/memory.h"
+#include "../drivers/serial.h"
 #define MODULE_NAME "PCI"
 
 char *classes[][20] = {
@@ -45,16 +46,23 @@ void pci_read_file(vfile_t *file, uint32_t *buffer, uint32_t offset, uint32_t co
 void pci_write_file(vfile_t *file, uint32_t *buffer, uint32_t offset, uint32_t count){
     return;
 }
+
+fileops_t pci_fileops = {
+    0,
+    0,
+    pci_write_file,
+    pci_read_file,
+};
+
 void pci_make_file(uint32_t class, uint8_t bus, uint8_t slot, uint8_t func){
-    char *str = kmalloc(1);
-    memcpy("/dev/pci/", str, 9);
+    char str[256] = "/dev/pci/\0";
     char *dev = classes[class >> 8][class & 0xf];
     switch(class >> 8){
         case 0x1://PCI class 0x1 is disks
+        // printf("!!STR: %s, LEN: %d!!", str, strlen(str));
         strcpy("disk/", str + strlen(str));
         uint32_t l = (uint32_t)pci_read_config(bus, slot, func, 0x4) | (uint32_t)pci_read_config(bus, slot, func, 0x6) << 16;
         pci_write_config(bus, slot, func, 0x4, l | 4);
-        
         break;
         case 0x2://PCI class 0x2 is network controllers
         strcpy("net/", str + strlen(str));
@@ -72,12 +80,21 @@ void pci_make_file(uint32_t class, uint8_t bus, uint8_t slot, uint8_t func){
     char cpy[256];
     vfile_t *file = 0;
     uint8_t tries = 0;
-    while(file == 0){
+    // while(file == 0){
         itoa(tries++, num, 10);
         strcpy(str, cpy);
         strcpy(num, cpy + strlen(cpy));
-        file = fcreate(cpy, VFILE_DEVICE, pci_write_file, pci_read_file);
-    }
+        file = fcreate(cpy, 0);
+        // file->read = pci_read_file;
+        // file->write = pci_write_file;
+        // if(file == 0) break;
+        if(!file){
+            mlog(MODULE_NAME, "Failed to make file for PCI device %s!\n", MLOG_PRINT, cpy);
+            return;
+        }
+        // printf("ASSERT file == null: %d\n", file == 0);
+        file->fileops = &pci_fileops;
+    // }
     file->id = (uint32_t)slot | ((uint32_t)func << 8) | ((uint32_t)bus << 16);
 }
 
@@ -120,11 +137,11 @@ void pci_enumerate_bus(uint8_t bus){
 
 void pci_init(){
     mlog(MODULE_NAME, "Enumerating PCI Buses\n", MLOG_PRINT);
-    vfile_t *file = fcreate("dev/pci/", VFILE_DIRECTORY, kmalloc(1), 1);
-    fcreate("dev/pci/disk", VFILE_DIRECTORY, kmalloc(1), 1);
-    fcreate("dev/pci/net", VFILE_DIRECTORY, kmalloc(1), 1);
-    fcreate("dev/pci/video", VFILE_DIRECTORY, kmalloc(1), 1);
-    fcreate("dev/pci/bridge", VFILE_DIRECTORY, kmalloc(1), 1);
+    vfile_t *file = fcreate("/dev/pci/", FS_FILE_IS_DIR);
+    fcreate("/dev/pci/disk", FS_FILE_IS_DIR);
+    fcreate("/dev/pci/net", FS_FILE_IS_DIR);
+    fcreate("/dev/pci/video", FS_FILE_IS_DIR);
+    fcreate("/dev/pci/bridge", FS_FILE_IS_DIR);
     for(uint32_t i = 0 ; i < 256; i++){
         pci_enumerate_bus(i);
     }

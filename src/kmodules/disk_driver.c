@@ -8,6 +8,17 @@
 
 KOS_MAPI_FP api;
 
+int ata_read(vfile_t *file, uint8_t *ptr, uint32_t offset, uint32_t count);
+int ata_write(vfile_t *file, void *ptr, uint32_t offset, uint32_t count);
+fileops_t ide_fileops = {
+    0,
+    0,
+    ata_write,
+    ata_read,
+    0,
+    0,
+};
+
 /*
 TODO:
 Register module 
@@ -208,7 +219,7 @@ int ata_write(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
     if (count == 0) return -1;
     ata_acquire_primary_lock();
     // }
-    drive_t drive = drives[file->mount_id];
+    drive_t drive = drives[file->id];
     uint16_t io_base = drive.BARs[0] &0xfffe;
     uint16_t ctrl_base = drive.BARs[1] &0xfffe;
     uint16_t bm_base = drive.BARs[4] & ~3;
@@ -283,7 +294,7 @@ int ata_write(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
     
     asm("sti");
     
-    transferring_disk_index = file->mount_id;
+    transferring_disk_index = file->id;
     
     uint8_t status = inb(ctrl_base);
     uint8_t bm_status = inb(bm_base + 2);
@@ -303,7 +314,7 @@ int ata_write(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
 
 int ata_read(vfile_t *file, uint8_t *ptr, uint32_t offset, uint32_t count) {
     if (count == 0) return -1;
-    drive_t drive = drives[file->mount_id];
+    drive_t drive = drives[file->id];
     uint16_t io_base = drive.BARs[0] &0xfffe;
     uint16_t ctrl_base = drive.BARs[1] &0xfffe;
     uint16_t bm_base = drive.BARs[4] & ~3;
@@ -372,14 +383,15 @@ int ata_read(vfile_t *file, uint8_t *ptr, uint32_t offset, uint32_t count) {
     recieved_ints = 0;
     
     asm("cli");
-    transferring_disk_index = file->mount_id;
+    transferring_disk_index = file->id;
     uint32_t cpid = api(MODULE_API_GET_CPID);
     // api(MODULE_API_PRINT, MODULE_NAME, "Cpid: %x", cpid);
     api(MODULE_API_BLOCK_PID, cpid);
     transferring_pid = cpid;
     
     outb(bm_base, 0x09); 
-    asm("sti");
+    // asm("sti"); // TODO: Make it so that instead of sti(), restore interrupt flag
+    if(!api(MODULE_API_IS_INTERRUPT)) asm("sti");
     
     uint8_t status = inb(ctrl_base);
     uint8_t bm_status = inb(bm_base + 2);
@@ -522,8 +534,19 @@ uint8_t ata_identify(uint32_t index, uint16_t disk){
     uint32_t prdt_phys = api(MODULE_API_PMALLOC64K);
     drives[index].PRDT = (void *)api(MODULE_API_KMALLOC_PADDR, prdt_phys, 16);
     itoa(ata_drives, fname + strlen(fname), 10);
-    vfile_t *new_file = fcreate(api, fname, VFILE_DEVICE, ata_write, ata_read);
-    new_file->mount_id = index;
+    vfile_t *new_file = fcreate(api, fname, FS_FILE_SYSTEM);
+    api(MODULE_API_PRINT, MODULE_NAME, "New File: %x, Name: %s\n", new_file, new_file->name);
+    //
+    //
+    //
+    //  RIGHT HERE
+    //
+    //
+    //
+    // new_file->read = ata_read;
+    // new_file->write = ata_write;
+    new_file->id = index;
+    new_file->fileops = &ide_fileops;
     puts(api, "KIDM", "Valid Drive!\n");
     return 0;
 }
@@ -596,10 +619,22 @@ void init(KOS_MAPI_FP module_api, uint32_t api_version){
     api(MODULE_API_ADDINT, 15, module_data.key, int_handler);
     api(MODULE_API_ADDINT, 14, module_data.key, int_handler);
     // api(MODULE_API_ADDINT, 0, module_data.key, int_handler);
-    vfile_t *pci_drive_dir = fget_file(api, "/dev/pci/disk/");
-    vfile_t **dir_data = (pci_drive_dir->access.data.ptr);
-    for(uint32_t i = 0; dir_data[i]; i++){
-        vfile_t *current_file = dir_data[i];
+    vfile_t *pci_drive_dir = fopen(api, "/dev/pci/disk");
+    if(!pci_drive_dir){
+        puts(api, MODULE_NAME, "Failed to open /dev/pci/disk\n");
+        return;
+    }
+    // vfile_t **dir_data = (pci_drive_dir->ptr);
+    
+    const uint32_t PCI_SEARCH_COUNT = 64;
+    
+    vfile_t *dir_data = malloc(api, (PCI_SEARCH_COUNT * sizeof(vfile_t) + 4095)/4096);
+    
+    uint32_t file_count = api(MODULE_API_READ, pci_drive_dir, dir_data, 0, PCI_SEARCH_COUNT * sizeof(vfile_t))/sizeof(vfile_t);
+    api(MODULE_API_PRINT, MODULE_NAME, "File count: %x\n", file_count);
+    
+    for(uint32_t i = 0; i < file_count; i++){
+        vfile_t *current_file = &(dir_data[i]);
         uint32_t class = 0;
         fread(api, current_file, &class, 0x8, 1);
         uint32_t progif = class >> 8 & 0xff;

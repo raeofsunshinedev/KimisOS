@@ -21,6 +21,21 @@ inline uint32_t strcmp(char *str1, char *str2){
     if(str1[i] == str2[i]) return 0;
     else return 1;
 }
+
+inline void memclr(char *ptr, uint32_t count){
+    if(count % 4 == 0){
+        uint32_t *intptr = (uint32_t *)ptr;
+        for(uint32_t i = 0; i < count/4; i++){
+            intptr[i] = 0;
+        }
+        return;
+    }
+    for(uint32_t i = 0; i < count; i++){
+        ptr[i] = 0;
+    }
+    return;
+}
+
 char *strtok(char *str, char delim);
 void strcpy(char *src, char *dest);
 void memcpy(char *src, char *dest, uint32_t c);

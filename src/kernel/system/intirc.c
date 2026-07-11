@@ -17,8 +17,12 @@ int is_num(char c){
 
 void initrc_read(vfile_t *file){
     mlog("KERNEL", "Reading initrc:\n", MLOG_PRINT);
-    char *ptr = file->access.data.ptr;
-    uint32_t size = file->access.data.size_pgs * 4096;
+    if(!file || !file->private){
+        mlog("KERNEL", "Failed to read initrc!\n", MLOG_PRINT);
+        return;
+    }
+    char *ptr = file->private;
+    uint32_t size = file->size;
     char statement[512];
     uint32_t i = 0;
     while(strcmp(statement, "END")){
@@ -52,18 +56,18 @@ void initrc_read(vfile_t *file){
             i++;
             char module_name[512];
             int j = 0;
-            for(; j < 512 && ptr[i + j] && ptr[i+j] != '\n' && ptr[i + j] != ' '; j++){
+            for(; j < 512 && ptr[i + j] && ptr[i+j] != '\n' && ptr[i + j] != ' ' && i+j < size; j++){
                 module_name[j] = ptr[i + j];
             }
             i+=j;
             module_name[j] = 0;
             // printf("%s\n", module_name);
-            vfile_t *module = fget_file(module_name);
+            vfile_t *module = fopen(module_name);
             if(!module){
                 printf("Error: Could not find module in Initrc.conf: %s\n", module_name);
                 continue;
             }
-            module_start(module->access.data.ptr);
+            module_start(module->private);
         }
         else if(!strcmp(statement, "MOUNT")){
             char mount_src_name[512] = {0};
@@ -71,12 +75,12 @@ void initrc_read(vfile_t *file){
             uint32_t offset = 0;
             i++;
             int j = 0;
-            for(; j < 512 && ptr[i + j] && ptr[i+j] != '\n' && ptr[i+j] != ' '; j++){
+            for(; j < 512 && ptr[i + j] && ptr[i+j] != '\n' && ptr[i+j] != ' ' && i+j < size; j++){
                 mount_src_name[j] = ptr[i + j];
             }
             i+=j;
             mount_src_name[j] = 0;
-            for(j = 1; ptr[i + j] && ptr[i + j] != '\n' && ptr[i + j] != ' '; j++){
+            for(j = 1; ptr[i + j] && ptr[i + j] != '\n' && ptr[i + j] != ' ' && i+j < size; j++){
                 mount_dest[j-1] = ptr[i + j];
             }
             
@@ -115,10 +119,14 @@ void initrc_read(vfile_t *file){
             
             // printf("TEST: %s, %s, %d\n", mount_src_name, mount_dest, ptr[i]);
             
-            vfile_t *to_mount = fget_file(mount_src_name);
+            vfile_t *to_mount = fopen(mount_src_name);
+            if(!to_mount){
+                mlog("KERNEL", "Could not locate file: %s. Aborting mount.\n", MLOG_PRINT, mount_src_name);
+                continue;
+            }
             if(!dispatch_message(MESSAGE_MOUNT_FS, to_mount, mount_dest, offset)){
                 mlog("INITRC", "Error: Could not mount device %s at %s", MLOG_PRINT, mount_src_name, mount_dest);
-                asm("int $13");
+                // asm("int $13");
             }
         }
         else if(!strcmp(statement, "END")){

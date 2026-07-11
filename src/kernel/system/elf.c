@@ -1,5 +1,6 @@
 #include "elf.h"
 #include "../shared/kstdlib.h"
+#include "../shared/string.h"
 #include "../shared/memory.h"
 
 #define MODULE_NAME "ELFLOAD"
@@ -14,19 +15,9 @@ void *load_segment(program_entry_t entry, void *file_data, void *base_segment, u
     // printf("Base: %x\n", base_segment);
     if(entry.type == 1){
         if(((elf_header_t *)(file_data))->type == ELF_TYPE_SHARED){
-            if(base_segment == 0){
-                segment = kmalloc(entry.msize/4096 + 1);
-                base_segment = segment;
-            }
-            else{
-                segment = base_segment + (entry.vaddr & 0xfffff000);
-                uint32_t count = 1;
-                count += ((entry.vaddr+entry.msize) - entry.vaddr) ? 1 : 0;
-                count += entry.msize/4096 + 1;
-                for(uint32_t i = 0; i < count; i++){
-                    map(segment + (i << 12)/4, (void *)pm_alloc(), PT_PRESENT | map_flags);
-                }
-            }
+            segment = base_segment + (entry.vaddr & 0xfffff000);
+            memclr(segment, entry.msize);
+            
             for(uint32_t i = 0; i < entry.fsize/sizeof(uint32_t) + 1; i++){
                 segment[i] = ((uint32_t *)(file_data))[i + entry.data_offset/sizeof(uint32_t)];
             }
@@ -40,6 +31,7 @@ void *load_segment(program_entry_t entry, void *file_data, void *base_segment, u
         //What is this for?
         //TODO: Find out how to handle Dynamic sections
     }
+    
     // printf("data_offset: %x\n", data_offset);
     return base_segment;
 }
@@ -53,7 +45,12 @@ void *load_elf(void *file_data, uint32_t map_flags){
     program_entry_t *program_header = file_data + header->program_header_offset;
     uint32_t program_header_count = header->program_entry_count;
     mlog(MODULE_NAME, "PROGRAM ENTRIES: %d\n", MLOG_PRINT, program_header_count);
-    void *base_segment = 0;
+    uint32_t size_pages = 0;
+    for(uint32_t i = 0; i < program_header_count; i++){
+        size_pages += (program_header[i].msize + PAGE_SIZE_BYTES - 1) / PAGE_SIZE_BYTES;
+    }
+    // printf("Requires %d pages\n", size_pages)
+    void *base_segment = kmalloc(size_pages);
     for(uint32_t i = 0; i < program_header_count; i++){
         base_segment = load_segment(program_header[i], file_data, base_segment, map_flags);
     }

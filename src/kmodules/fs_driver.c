@@ -23,16 +23,16 @@ uint8_t fat32_check_valid(fat32_bpb_t *bpb){
 
 
 uint32_t fat32_mount(vfile_t *dev_file, char *destination, uint32_t offset){
-    char *bpb_buffer = malloc(api, 1);
-    fread(api, dev_file, bpb_buffer, offset, 4096);
-    fat32_bpb_t *bpb = bpb_buffer;
+    // char *bpb_buffer = malloc(api, 1);
+    // fread(api, dev_file, bpb_buffer, offset, 4096);
+    // fat32_bpb_t *bpb = bpb_buffer;
     
-    api(MODULE_API_PRINT, MODULE_NAME, "Sizeof struct: %d, sig: %x, boot sig: %x\n", sizeof(fat32_bpb_t), bpb->signature, bpb->bootable_sig);
-    if(!fat32_check_valid(bpb)){
-        api(MODULE_API_PRINT, MODULE_NAME, "Error: No valid BPB\n");
-        return 0;
-    }
-    puts(api, MODULE_NAME, "Valid BPB found!\n");
+    // api(MODULE_API_PRINT, MODULE_NAME, "Sizeof struct: %d, sig: %x, boot sig: %x\n", sizeof(fat32_bpb_t), bpb->signature, bpb->bootable_sig);
+    // if(!fat32_check_valid(bpb)){
+    //     api(MODULE_API_PRINT, MODULE_NAME, "Error: No valid BPB\n");
+    //     return 0;
+    // }
+    // puts(api, MODULE_NAME, "Valid BPB found!\n");
     
     // fat32_make_mount();
     
@@ -59,8 +59,8 @@ void init(KOS_MAPI_FP module_api, uint32_t api_version){
     api(MODULE_API_PRINT, MODULE_NAME, "KIFSM Filesystem Driver Module v0.1.0\nSupported Filesystems:\n");
     int32_t status = api(MODULE_API_REGISTER, &module_data);
     
-    api(MODULE_MESSAGE_HANDLER, module_data.key, message_handler);
-    api(MODULE_API_PRINT, MODULE_NAME, "Key: %x\n", module_data.key);
+    // api(MODULE_MESSAGE_HANDLER, module_data.key, message_handler);
+    // api(MODULE_API_PRINT, MODULE_NAME, "Key: %x\n", module_data.key);
     
     return;
 }
