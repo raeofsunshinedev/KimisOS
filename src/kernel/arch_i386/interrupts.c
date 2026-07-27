@@ -122,7 +122,8 @@ void kernel_panic(char *message, cpu_registers_t *regs){
     printf(message);
     printf("System halting...\n");
     if(regs != 0) panic_hold(regs);
-    asm volatile ("jmp .");
+    // asm volatile ("jmp .");
+    asm volatile ("int $0x0d");
 }
 
 void install_irq_handler(void (*handler)(), uint8_t irqno){

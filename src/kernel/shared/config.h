@@ -12,3 +12,4 @@ typedef struct kernel_config_s{
 }kernel_config_t;
 
 void config_init();
+const kernel_config_t get_config_const();

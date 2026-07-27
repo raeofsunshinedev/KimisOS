@@ -14,12 +14,61 @@ extern uint32_t _end;
 mmap_entry_t mmap;
 uint32_t mmap_entry_c;
 
+uint8_t *heap_map;
+uint32_t heap_map_size;
+void *heap_base;
+
+const uint32_t HEAP_ENTRY_SIZE = 4;
+const uint32_t HEAP_ENTRIES_PER_INDEX = 2;
+
+uint32_t pm_first_free = 0;
+
+inline uint8_t get_heap_index(uint32_t index){
+    if(index > heap_map_size/HEAP_ENTRIES_PER_INDEX) return 0;
+    uint8_t flags = heap_map[index/HEAP_ENTRIES_PER_INDEX] >> (index % HEAP_ENTRIES_PER_INDEX) * HEAP_ENTRY_SIZE;
+}
+
+inline void *heap_index_to_address(uint32_t index){
+    
+}
+
+inline uint32_t heap_address_to_index(void *address){
+    if((uint32_t)address > (uint32_t)heap_base + heap_map_size * HEAP_ENTRIES_PER_INDEX * PAGE_SIZE_BYTES || (uint32_t)address < (uint32_t)heap_base) return -1;
+    uint32_t index = ((uint32_t)address - (uint32_t)heap_base)/(HEAP_ENTRIES_PER_INDEX*PAGE_SIZE_BYTES);
+    return index;
+}
+
+
+inline void get_free_heap_page(){
+    
+}
+
+uint32_t heap_init(uint32_t size_bytes){
+    uint32_t heap_pages = (size_bytes + PAGE_SIZE_BYTES - 1)/PAGE_SIZE_BYTES;
+    uint32_t heap_map_size = heap_pages/HEAP_ENTRIES_PER_INDEX;
+    uint32_t heap_map_size_pages = (heap_map_size + PAGE_SIZE_BYTES - 1)/PAGE_SIZE_BYTES;
+    mlog("KERNEL", "Heap map size: %d, %d\n", MLOG_PRINT, heap_map_size, heap_map_size_pages);
+    heap_map = kmalloc(heap_map_size_pages);
+    // printf("Kernel heap size: %x", heap_pages);
+    heap_base = kmalloc(heap_pages);
+    // printf("Test\n");
+    
+    if(heap_base == 0){
+        PANIC("Not enough memory for heap!\n");
+    }
+    
+    mlog("KERNEL", "Initializing permanent kernel heap. Base: %x, Size: %x, Pages: %d, Limit: %x", MLOG_PRINT, heap_base, size_bytes, heap_pages, heap_base + size_bytes);
+}
+
 uint32_t pm_alloc(){
     asm("cli");
-    for(uint32_t i = 0; i < mmap_count; i++){
+    for(uint32_t i = pm_first_free; i < mmap_count; i++){
         for(int j = 0; j < 8; j++){
             if(!(pm_map[i] & (1 << j))){
                 pm_map[i] |= (1 << j);
+                if(i > pm_first_free){
+                    pm_first_free = i;
+                }
                 return (i << 3 | j) << 12;
             }
         }
@@ -67,11 +116,16 @@ uint32_t pm_alloc_64kaligned(){
 }
 void pm_free(uint32_t address){
     pm_map[address >> 15] &= ~(1 << ((address>>12) & 7));
+    if(address >> 15 < pm_first_free){
+        pm_first_free = address >> 15;
+    }
 }
 void pm_reserve(uint32_t address){
     pm_map[address >> 15] |= 1 << ((address>>12) & 7);
+    pm_first_free = address >> 15;
 }
 int pm_init(kernel_info_t *kernel_info){
+    pm_first_free = 0;
     mmap_entry_t *mmap = (mmap_entry_t*)(kernel_info->mmap_ptr);
     // printf("mmap count: %d\n| start  | length |type|\n|--------|--------|----|\n", kernel_info->mmap_entry_count);
     for(uint32_t i = 0; i < mmap_count; i++){
@@ -202,6 +256,10 @@ void *kmalloc(uint32_t size_pgs){
         for(uint32_t j = 0; j < size_pgs; j++){
             uint32_t flags = PT_PRESENT | PT_SYS | (PT_LINK_L * (j != 0)) | (PT_LINK_N * (j < (size_pgs - 1)) | PT_PCD);
             uint32_t physaddr = pm_alloc();
+            if(physaddr == 0){
+                kfree((void *)(i<<22));
+                return 0;
+            }
             map((void *)((i + j) << 12), (void*)physaddr, flags);
         }
         asm("sti");

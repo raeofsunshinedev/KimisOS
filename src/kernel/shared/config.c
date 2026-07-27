@@ -29,3 +29,7 @@ void config_set_expanic(uint32_t value){
 void config_set_swap_size(uint32_t value){
     config.swap_size = value;
 }
+
+const kernel_config_t get_config_const(){
+    return config;
+}
