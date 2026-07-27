@@ -17,35 +17,40 @@ uint32_t mmap_entry_c;
 uint8_t *heap_map;
 uint32_t heap_map_size;
 void *heap_base;
+uint32_t heap_first_free;
 
-const uint32_t HEAP_ENTRY_SIZE = 4;
+const uint32_t HEAP_ENTRY_SIZE_BITS = 4;
 const uint32_t HEAP_ENTRIES_PER_INDEX = 2;
 
 uint32_t pm_first_free = 0;
 
 inline uint8_t get_heap_index(uint32_t index){
-    if(index > heap_map_size/HEAP_ENTRIES_PER_INDEX) return 0;
-    uint8_t flags = heap_map[index/HEAP_ENTRIES_PER_INDEX] >> (index % HEAP_ENTRIES_PER_INDEX) * HEAP_ENTRY_SIZE;
+    if (index >= heap_map_size * HEAP_ENTRIES_PER_INDEX) return 0;
+    return (heap_map[index / HEAP_ENTRIES_PER_INDEX] >> ((index % HEAP_ENTRIES_PER_INDEX) * HEAP_ENTRY_SIZE_BITS)) & ((1 << HEAP_ENTRY_SIZE_BITS) - 1);
+}
+
+inline void set_heap_index(uint32_t index, uint32_t flags){
+    if(index > heap_map_size * HEAP_ENTRIES_PER_INDEX) return;
+    uint8_t new_set = (flags << HEAP_ENTRY_SIZE_BITS * (index % HEAP_ENTRIES_PER_INDEX)) | (heap_map[index/HEAP_ENTRIES_PER_INDEX] << HEAP_ENTRY_SIZE_BITS * !(index % HEAP_ENTRIES_PER_INDEX));
+    heap_map[index / HEAP_ENTRIES_PER_INDEX] = new_set;
 }
 
 inline void *heap_index_to_address(uint32_t index){
-    
+    return heap_base + index * PAGE_SIZE_BYTES;
 }
 
-inline uint32_t heap_address_to_index(void *address){
-    if((uint32_t)address > (uint32_t)heap_base + heap_map_size * HEAP_ENTRIES_PER_INDEX * PAGE_SIZE_BYTES || (uint32_t)address < (uint32_t)heap_base) return -1;
-    uint32_t index = ((uint32_t)address - (uint32_t)heap_base)/(HEAP_ENTRIES_PER_INDEX*PAGE_SIZE_BYTES);
-    return index;
-}
-
-
-inline void get_free_heap_page(){
-    
+inline uint32_t heap_address_to_index(void *address)
+{
+    printf("Addr: %x Base: %x, %x, %d\n", address, heap_base, (uint32_t)heap_base + heap_map_size * HEAP_ENTRIES_PER_INDEX * PAGE_SIZE_BYTES, (uint32_t)address < (uint32_t)heap_base);
+    if ((uint32_t)address >= (uint32_t)heap_base + heap_map_size * HEAP_ENTRIES_PER_INDEX * PAGE_SIZE_BYTES || (uint32_t)address < (uint32_t)heap_base){
+        return (uint32_t)-1;
+    }
+    return ((uint32_t)address - (uint32_t)heap_base) / PAGE_SIZE_BYTES;
 }
 
 uint32_t heap_init(uint32_t size_bytes){
     uint32_t heap_pages = (size_bytes + PAGE_SIZE_BYTES - 1)/PAGE_SIZE_BYTES;
-    uint32_t heap_map_size = heap_pages/HEAP_ENTRIES_PER_INDEX;
+    heap_map_size = heap_pages/HEAP_ENTRIES_PER_INDEX;
     uint32_t heap_map_size_pages = (heap_map_size + PAGE_SIZE_BYTES - 1)/PAGE_SIZE_BYTES;
     mlog("KERNEL", "Heap map size: %d, %d\n", MLOG_PRINT, heap_map_size, heap_map_size_pages);
     heap_map = kmalloc(heap_map_size_pages);
@@ -57,7 +62,27 @@ uint32_t heap_init(uint32_t size_bytes){
         PANIC("Not enough memory for heap!\n");
     }
     
-    mlog("KERNEL", "Initializing permanent kernel heap. Base: %x, Size: %x, Pages: %d, Limit: %x", MLOG_PRINT, heap_base, size_bytes, heap_pages, heap_base + size_bytes);
+    mlog("KERNEL", "Initializing permanent kernel heap. Base: %x, Size: %x, Pages: %d, Limit: %x\n", MLOG_PRINT, heap_base, size_bytes, heap_pages, heap_base + size_bytes);
+    heap_map[0] = 0xa5;
+    uint8_t heap_0 = get_heap_index(0);
+    uint8_t heap_1 = get_heap_index(1);
+    printf("Test: %x, %x\n", heap_0, heap_1);
+    
+    set_heap_index(0, 0xa);
+    set_heap_index(1, 0x5);
+    
+    heap_0 = get_heap_index(0);
+    heap_1 = get_heap_index(1);
+    printf("Test1: %x, %x\n", heap_0, heap_1);
+    printf("Test2: %x, %x\n", heap_index_to_address(0), heap_address_to_index(heap_index_to_address(2)));
+    
+}
+
+void *heap_alloc(uint32_t size_pgs){
+    uint32_t max_index = heap_map_size * HEAP_ENTRIES_PER_INDEX;
+    for(uint32_t i = heap_first_free; i < max_index; i++){
+        uint32_t index_data = get_heap_index(i);
+    }
 }
 
 uint32_t pm_alloc(){
