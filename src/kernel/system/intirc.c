@@ -2,11 +2,20 @@
 #include "../shared/memory.h"
 #include "../shared/string.h"
 #include "modules.h"
+#include "initrc.h"
 #include "vfs.h"
+#include "../shared/config.h"
 
 //COMMANDS TO WRITE:
 //link: create symlink from one file to another (useful for actually selecting where to mount things)
 //exec: execute program in userspace
+
+config_map_entry_t config_map[] = {
+    {
+        "KERNEL_HEAP",
+        config_set_kernel_heap_size
+    }
+};
 
 int is_num(char c){
     if(c < 48 || (c > 57 && c < 97)) return 0;
@@ -14,6 +23,9 @@ int is_num(char c){
     return 1;
 }
 
+void initrc_set_config(char *confstr){
+    printf("Size: %x", sizeof config_map);
+}
 
 void initrc_read(vfile_t *file){
     mlog("KERNEL", "Reading initrc:\n", MLOG_PRINT);
@@ -125,9 +137,12 @@ void initrc_read(vfile_t *file){
                 continue;
             }
             if(!dispatch_message(MESSAGE_MOUNT_FS, to_mount, mount_dest, offset)){
-                mlog("INITRC", "Error: Could not mount device %s at %s", MLOG_PRINT, mount_src_name, mount_dest);
+                mlog("INITRC", "Error: Could not mount device %s at %s\n", MLOG_PRINT, mount_src_name, mount_dest);
                 // asm("int $13");
             }
+        }
+        else if(!strcmp(statement, "CONFIG")){
+            mlog("INITRC", "Error: Not implemented\n", MLOG_PRINT);
         }
         else if(!strcmp(statement, "END")){
             return;

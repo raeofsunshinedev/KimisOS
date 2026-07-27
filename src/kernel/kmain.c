@@ -2,6 +2,7 @@
 #include "shared/string.h"
 #include "shared/kstdlib.h"
 #include "shared/interrupts.h"
+#include "shared/config.h"
 #include "drivers/serial.h"
 #include "drivers/pic.h"
 #include "drivers/cpuio.h"
@@ -40,6 +41,7 @@ void sysinit(){
     for(;;);
 }
 extern void kmain(kernel_info_t *kernel_info){
+    config_init();
     serial_init();
     pm_init(kernel_info);
     ramfs_init();
