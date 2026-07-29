@@ -26,16 +26,16 @@ void scheduler_init(){
 uint32_t timer = 0;
 
 void add_process_queue(uint32_t pid){
-    asm("cli");
+    // asm("cli");
     asm volatile ("" : : :"memory");
     process_queue[queue_length] = pid;
     queue_length++;
-    asm("sti");
+    // asm("sti");
     return;
 }
 //Watch out for this function.
 void remove_process_queue(uint32_t pid){
-    asm("cli");
+    // asm("cli");
     uint32_t last_queue_index = queue_length-1;
     uint32_t old_index = -1;
     for(uint32_t i = 0; i <= last_queue_index; i++){
@@ -45,7 +45,7 @@ void remove_process_queue(uint32_t pid){
         }
     }
     if(old_index == last_queue_index || old_index > queue_length || old_index > PROCESS_COUNT){
-        asm("sti");
+        // asm("sti");
         return;
     }
     process_queue[old_index] = process_queue[last_queue_index];
@@ -53,7 +53,7 @@ void remove_process_queue(uint32_t pid){
     queue_length--;
     if(current_queue_index > 0)
         current_queue_index--;
-    asm("sti");
+    // asm("sti");
 }
 
 cpu_registers_t *schedule(cpu_registers_t *regs){
@@ -72,7 +72,7 @@ cpu_registers_t *schedule(cpu_registers_t *regs){
 }
 
 uint32_t spawn_new_process(cpu_registers_t defaultregs, char **argv, uint32_t argc, void *cr3){
-    asm("cli");
+    // asm("cli");
     uint32_t i = current_pid;
     while(processes[i].flags.present){
         i++;
@@ -97,7 +97,7 @@ uint32_t spawn_new_process(cpu_registers_t defaultregs, char **argv, uint32_t ar
     new_proc.max_descriptors = DEFAULT_FD_MAX;
     processes[i] = new_proc;
     add_process_queue(i);
-    asm("sti");
+    // asm("sti");
     return i;
 }
 

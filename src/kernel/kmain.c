@@ -39,16 +39,13 @@ void sysinit(){
     // heap_init(config.kernel_heap_size);
     // dispatch_message(0);
     printf("Bleh\n");
-    get_physical_memory_usage();
-    void *test = kmalloc(1024);
-    get_physical_memory_usage();
-    kfree(test);
-    get_physical_memory_usage();
-    printf("Hello!\n");
-    test = kmalloc(1024);
-    get_physical_memory_usage();
-    kfree(test);
-    get_physical_memory_usage();
+    // get_physical_memory_usage();
+    // void *test = kmalloc(1024);
+    // get_physical_memory_usage();
+    // kfree(test);
+    // get_physical_memory_usage();
+    // printf("Hello!\n");
+    // test = kmalloc(1024);
     //why did i stop working on this? what was wrong with this?
     for(;;);
 }
@@ -62,7 +59,6 @@ extern void kmain(kernel_info_t *kernel_info){
     pic_init(0x20);
     pic_setmask(0x0, PIC1_DATA);
     pic_setmask(0x0, PIC2_DATA);
-    
     // printf("Test start!\n");
     // kmalloc(0x4000);
     // printf("Test end!\n");

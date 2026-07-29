@@ -28,7 +28,7 @@ uint32_t pm_first_free = 0;
 
 void get_physical_memory_usage(){
     uint32_t used_pages = 0;
-    for(uint32_t i = 0; i < 8192; i++){
+    for(uint32_t i = 512; i < 8192; i++){
         for(int j = 0; j < 8; j++){
             if((pm_map[i] & (1 << j))){
                 used_pages++;
@@ -102,7 +102,7 @@ void *heap_alloc(uint32_t size_pgs){
 }
 
 uint32_t pm_alloc(){
-    asm("cli");
+    // asm("cli");
     for(uint32_t i = pm_first_free; i < mmap_count; i++){
         for(int j = 0; j < 8; j++){
             if(!(pm_map[i] & (1 << j))){
@@ -115,10 +115,10 @@ uint32_t pm_alloc(){
         }
     }
     return 0;
-    asm("sti");
+    // asm("sti");
 }
 uint32_t pm_alloc_index(uint32_t index){
-    asm("cli");
+    // asm("cli");
     for(uint32_t i = 0; i < 2; i++){
         for(int j = 0; j < 8; j++){
             // if(!(pm_map[i] & (1 << j))){
@@ -127,10 +127,10 @@ uint32_t pm_alloc_index(uint32_t index){
         }
     }
     return (index << 3) << 12;
-    asm("sti");
+    // asm("sti");
 }
 uint32_t pm_alloc_64kaligned(){
-    asm("cli");
+    // asm("cli");
     uint32_t cont = 0;
     uint32_t current = 0;
     for(uint32_t i = 0; i < mmap_count; i++){
@@ -153,11 +153,11 @@ uint32_t pm_alloc_64kaligned(){
         cont++;
     }
     return 0;
-    asm("sti");
+    // asm("sti");
 }
 void pm_free(uint32_t address){
     pm_map[address >> 15] &= ~(1 << ((address>>12) & 7));
-    if(address >> 15 < pm_first_free){
+    if((address >> 15) < pm_first_free){
         pm_first_free = address >> 15;
     }
 }
@@ -213,7 +213,7 @@ int pm_init(kernel_info_t *kernel_info){
     }
 }
 void map(void *vaddr, void *paddr, uint32_t flags){
-    asm("cli");
+    // asm("cli");
     uint32_t pd_index = (uint32_t)vaddr >> 22;
     uint32_t pt_index = (uint32_t)vaddr >> 12 & 0x3ff;
     
@@ -229,7 +229,7 @@ void map(void *vaddr, void *paddr, uint32_t flags){
     // printf("%x %x\n", vaddr, paddr);
     pt[pt_index] = (uint32_t)paddr | flags;
     asm volatile("invlpg (%0)  " : : "b"(vaddr) : "memory");
-    asm("sti");
+    // asm("sti");
 }
 void unmap(void *vaddr){
     uint32_t pd_index = (uint32_t)vaddr >> 22;
@@ -284,7 +284,7 @@ void *get_new_page(uint32_t flags){
     return (void *)(paddr+i*4096);
 }
 void *kmalloc(uint32_t size_pgs){
-    asm("cli");
+    // asm("cli");
     if(heap_base != 0){
         printf("Heap Alloc!\n");
         return 0;
@@ -311,10 +311,10 @@ void *kmalloc(uint32_t size_pgs){
             }
             map((void *)((i + j) << 12), (void*)physaddr, flags);
         }
-        asm("sti");
+        // asm("sti");
         return (void*)(i << 12);
     }
-    asm("sti");
+    // asm("sti");
     return 0;
 }
 void *kmalloc_page_paddr(uint32_t paddr, uint32_t size_pgs){
@@ -347,11 +347,17 @@ void *kfree(void *vaddr){
     uint32_t addr = (uint32_t)vaddr;
     addr &= ~0xfff;
     while(get_pflags((void *)addr)&PT_LINK_L) addr -= 0x1000;
-    do{
+    while (1) {
+        uint32_t flags = get_pflags((void *)addr);
         uint32_t paddr = get_paddr((void *)addr);
-        pm_free(paddr);
+
         unmap((void *)addr);
+        pm_free(paddr);
+
+        if (!(flags & PT_LINK_N))
+            break;
+
         addr += 0x1000;
-    }while(get_pflags((void *)addr)&PT_LINK_N);
+    }
     return 0;
 }

@@ -127,10 +127,10 @@ void kernel_panic(char *message, cpu_registers_t *regs){
 }
 
 void install_irq_handler(void (*handler)(), uint8_t irqno){
-    asm("cli");
+    // asm("cli");
     interrupt_handlers[irqno] = handler;
     // printf("called\n");
-    asm("sti");
+    // asm("sti");
 }
 void *get_irq_handler(uint8_t irqno){
     return interrupt_handlers[irqno];
