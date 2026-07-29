@@ -7,7 +7,8 @@
 uint8_t volatile pm_map[mmap_count];
 
 uint32_t total_memory = 0;
-uint32_t total_memory_usable = 0;
+uint32_t total_memory_unusable = 0;
+uint32_t memory_limit = 0;
 uint32_t volatile last_allocated = 0;
 extern uint32_t _start;
 extern uint32_t _end;
@@ -23,6 +24,20 @@ const uint32_t HEAP_ENTRY_SIZE_BITS = 4;
 const uint32_t HEAP_ENTRIES_PER_INDEX = 2;
 
 uint32_t pm_first_free = 0;
+
+
+void get_physical_memory_usage(){
+    uint32_t used_pages = 0;
+    for(uint32_t i = 0; i < 8192; i++){
+        for(int j = 0; j < 8; j++){
+            if((pm_map[i] & (1 << j))){
+                used_pages++;
+            }
+        }
+    }
+    printf("Used physical pages: %d\n", used_pages - total_memory_unusable);
+}
+
 
 inline uint8_t get_heap_index(uint32_t index){
     if (index >= heap_map_size * HEAP_ENTRIES_PER_INDEX) return 0;
@@ -49,6 +64,7 @@ inline uint32_t heap_address_to_index(void *address)
 }
 
 uint32_t heap_init(uint32_t size_bytes){
+    get_physical_memory_usage();
     uint32_t heap_pages = (size_bytes + PAGE_SIZE_BYTES - 1)/PAGE_SIZE_BYTES;
     heap_map_size = heap_pages/HEAP_ENTRIES_PER_INDEX;
     uint32_t heap_map_size_pages = (heap_map_size + PAGE_SIZE_BYTES - 1)/PAGE_SIZE_BYTES;
@@ -63,18 +79,18 @@ uint32_t heap_init(uint32_t size_bytes){
     }
     
     mlog("KERNEL", "Initializing permanent kernel heap. Base: %x, Size: %x, Pages: %d, Limit: %x\n", MLOG_PRINT, heap_base, size_bytes, heap_pages, heap_base + size_bytes);
-    heap_map[0] = 0xa5;
-    uint8_t heap_0 = get_heap_index(0);
-    uint8_t heap_1 = get_heap_index(1);
-    printf("Test: %x, %x\n", heap_0, heap_1);
+    // heap_map[0] = 0xa5;
+    // uint8_t heap_0 = get_heap_index(0);
+    // uint8_t heap_1 = get_heap_index(1);
+    // printf("Test: %x, %x\n", heap_0, heap_1);
     
-    set_heap_index(0, 0xa);
-    set_heap_index(1, 0x5);
+    // set_heap_index(0, 0xa);
+    // set_heap_index(1, 0x5);
     
-    heap_0 = get_heap_index(0);
-    heap_1 = get_heap_index(1);
-    printf("Test1: %x, %x\n", heap_0, heap_1);
-    printf("Test2: %x, %x\n", heap_index_to_address(0), heap_address_to_index(heap_index_to_address(2)));
+    // heap_0 = get_heap_index(0);
+    // heap_1 = get_heap_index(1);
+    // printf("Test1: %x, %x\n", heap_0, heap_1);
+    // printf("Test2: %x, %x\n", heap_index_to_address(0), heap_address_to_index(heap_index_to_address(2)));
     
 }
 
@@ -151,6 +167,8 @@ void pm_reserve(uint32_t address){
 }
 int pm_init(kernel_info_t *kernel_info){
     pm_first_free = 0;
+    total_memory_unusable = 0;
+    heap_base = 0;
     mmap_entry_t *mmap = (mmap_entry_t*)(kernel_info->mmap_ptr);
     // printf("mmap count: %d\n| start  | length |type|\n|--------|--------|----|\n", kernel_info->mmap_entry_count);
     for(uint32_t i = 0; i < mmap_count; i++){
@@ -159,11 +177,12 @@ int pm_init(kernel_info_t *kernel_info){
     // mlog("KERNEL", "   BASE  | LENGTH | TYPE\n           --------|--------|----\n", MLOG_PRINT);
     for(uint32_t i = 0; i < kernel_info->mmap_entry_count; i++){
         for(uint32_t j = 0; j < (mmap[i].entry_length >> 12); j++){
-            if(i != 0 && mmap[i].entry_base + (j << 12) <= mmap[i-1].entry_base + mmap[i-1].entry_length){
+            if(i != 0 && mmap[i].entry_base + (j << 12) < mmap[i-1].entry_base + mmap[i-1].entry_length){
                 continue;
             }
             // printf("j = %d\nIndex:%x\n", j, (mmap[i].entry_base >> 12) + (j & 3));
             if(mmap[i].type != BIOS_MMAP_USABLE){
+                total_memory_unusable++;
                 pm_map[(mmap[i].entry_base >> 15) + (j >> 3)] |= 1 << (j & 7) + ((mmap[i].entry_base >> 12) & 7);
             }
             else{
@@ -180,6 +199,7 @@ int pm_init(kernel_info_t *kernel_info){
         // printf("|%d   |\n", mmap[i].type);
     }
     for(uint32_t i = 0; i < 512; i++){
+        total_memory_unusable++;
         pm_reserve(i * 4096);
     }
     
@@ -265,6 +285,10 @@ void *get_new_page(uint32_t flags){
 }
 void *kmalloc(uint32_t size_pgs){
     asm("cli");
+    if(heap_base != 0){
+        printf("Heap Alloc!\n");
+        return 0;
+    }
     uint32_t i = 0xc0000000 >> 12; //4mb/4096 (start search at 1mb line)
     while(i < (1 << 22)){
         uint8_t found = 1;
