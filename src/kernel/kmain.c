@@ -36,17 +36,8 @@ void sysinit(){
         mlog("KERNEL", "ERROR: Initrc could not be located!\n", MLOG_PRINT);
     }
     const kernel_config_t config = get_config_const();
-    // heap_init(config.kernel_heap_size);
-    // dispatch_message(0);
+    heap_init(config.kernel_heap_size);
     printf("Bleh\n");
-    // get_physical_memory_usage();
-    // void *test = kmalloc(1024);
-    // get_physical_memory_usage();
-    // kfree(test);
-    // get_physical_memory_usage();
-    // printf("Hello!\n");
-    // test = kmalloc(1024);
-    //why did i stop working on this? what was wrong with this?
     for(;;);
 }
 extern void kmain(kernel_info_t *kernel_info){

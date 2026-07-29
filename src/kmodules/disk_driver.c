@@ -20,12 +20,18 @@ fileops_t ide_fileops = {
 };
 
 /*
-TODO:
-Register module 
-IDENTIFY
-CREATE ((virtual)) FILES
-CREATE interface when reading and writing from virtual files
-make fini function to destroy global object, and free any remaining resources.
+
+Rae, if you're looking at this file again, the time has come.
+"Disk operations are inconsistent"
+"The OS keeps freezing after a disk operation!"
+"Why does it work *sometimes* but not *other times?*"
+
+You're using sti/cli here to try and force "atomicity"
+
+Stop it. It's time to fix it. Implement proper spinlocks you goof.
+
+Even if you're here for something else, It's time for spinlocks. Do it. You know you want to be thread safe.
+
 */
 
 #define ATA_DATA          0

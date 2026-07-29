@@ -35,7 +35,6 @@ void get_physical_memory_usage(){
             }
         }
     }
-    printf("Used physical pages: %d\n", used_pages - total_memory_unusable);
 }
 
 
@@ -45,9 +44,14 @@ inline uint8_t get_heap_index(uint32_t index){
 }
 
 inline void set_heap_index(uint32_t index, uint32_t flags){
-    if(index > heap_map_size * HEAP_ENTRIES_PER_INDEX) return;
-    uint8_t new_set = (flags << HEAP_ENTRY_SIZE_BITS * (index % HEAP_ENTRIES_PER_INDEX)) | (heap_map[index/HEAP_ENTRIES_PER_INDEX] << HEAP_ENTRY_SIZE_BITS * !(index % HEAP_ENTRIES_PER_INDEX));
-    heap_map[index / HEAP_ENTRIES_PER_INDEX] = new_set;
+    if(index >= heap_map_size * HEAP_ENTRIES_PER_INDEX) return;
+    uint32_t byte = index / HEAP_ENTRIES_PER_INDEX;
+    uint32_t shift = (index % HEAP_ENTRIES_PER_INDEX) * HEAP_ENTRY_SIZE_BITS;
+    uint8_t mask = ((1 << HEAP_ENTRY_SIZE_BITS) - 1) << shift;
+    
+    heap_map[byte] =
+        (heap_map[byte] & ~mask) |
+        ((flags << shift) & mask);
 }
 
 inline void *heap_index_to_address(uint32_t index){
@@ -73,6 +77,11 @@ uint32_t heap_init(uint32_t size_bytes){
     // printf("Kernel heap size: %x", heap_pages);
     heap_base = kmalloc(heap_pages);
     // printf("Test\n");
+    heap_first_free = 0;
+    
+    for(uint32_t i = 0; i < heap_map_size; i++){
+        heap_map[i] = 0;
+    }
     
     if(heap_base == 0){
         PANIC("Not enough memory for heap!\n");
@@ -96,9 +105,46 @@ uint32_t heap_init(uint32_t size_bytes){
 
 void *heap_alloc(uint32_t size_pgs){
     uint32_t max_index = heap_map_size * HEAP_ENTRIES_PER_INDEX;
+    uint32_t start = 0;
     for(uint32_t i = heap_first_free; i < max_index; i++){
         uint32_t index_data = get_heap_index(i);
+        uint8_t found = 1;
+        for(uint32_t j = 0; j < size_pgs; j++){
+            if(get_heap_index(i+j)){
+                found = 0;
+                i += j;
+                break;
+            }
+        }
+        if(found){
+            start = i;
+            break;
+        }
     }
+    for(uint32_t i = 0; i < size_pgs; i++){
+        uint32_t page_flags = KMALLOC_USED | (KMALLOC_LINK_LAST * (i > 0)) | (KMALLOC_LINK_NEXT * (i < size_pgs - 1));
+        set_heap_index(start + i, page_flags);
+        // printf("%d @ %d\n", page_flags, start + i);
+    }
+    return heap_base + start * PAGE_SIZE_BYTES;
+}
+
+void *heap_free(void* addr){
+    uint32_t heap_index = (addr - heap_base) >> 12;
+    if(heap_index < heap_map_size * HEAP_ENTRIES_PER_INDEX) return 0;
+    while(get_heap_index(heap_index) & KMALLOC_LINK_LAST){
+        heap_index--;
+    }
+    while(1){
+        uint8_t flags = get_heap_index(heap_index);
+        set_heap_index(heap_index, 0);
+        
+        if (!(flags & KMALLOC_LINK_NEXT))
+            break;
+        
+        heap_index++;
+    }
+    return 0;
 }
 
 uint32_t pm_alloc(){
@@ -170,33 +216,27 @@ int pm_init(kernel_info_t *kernel_info){
     total_memory_unusable = 0;
     heap_base = 0;
     mmap_entry_t *mmap = (mmap_entry_t*)(kernel_info->mmap_ptr);
-    // printf("mmap count: %d\n| start  | length |type|\n|--------|--------|----|\n", kernel_info->mmap_entry_count);
     for(uint32_t i = 0; i < mmap_count; i++){
         pm_map[i] = 0xff;
     }
-    // mlog("KERNEL", "   BASE  | LENGTH | TYPE\n           --------|--------|----\n", MLOG_PRINT);
+    mlog("KERNEL", "   BASE  | LENGTH | TYPE\n           --------|--------|----\n", MLOG_PRINT);
     for(uint32_t i = 0; i < kernel_info->mmap_entry_count; i++){
         for(uint32_t j = 0; j < (mmap[i].entry_length >> 12); j++){
             if(i != 0 && mmap[i].entry_base + (j << 12) < mmap[i-1].entry_base + mmap[i-1].entry_length){
                 continue;
             }
-            // printf("j = %d\nIndex:%x\n", j, (mmap[i].entry_base >> 12) + (j & 3));
             if(mmap[i].type != BIOS_MMAP_USABLE){
                 total_memory_unusable++;
                 pm_map[(mmap[i].entry_base >> 15) + (j >> 3)] |= 1 << (j & 7) + ((mmap[i].entry_base >> 12) & 7);
             }
             else{
-                // uint8_t tmp = pm_map[(mmap[i].entry_base >> 12 ) + (j >> 3)];
-                // tmp &= ~(1 << (j & 3));
                 pm_map[(mmap[i].entry_base >> 15) + (j >> 3)] &= ~(1 << ((j & 7) + ((mmap[i].entry_base >> 12) & 7)));
             }
             // if(j % 8 == 7){
             //     printf("%d, %x, %d\n", j >> 3, pm_map[(mmap[i].entry_base >> 12 ) + (j >> 3)], mmap[i].type);
             // }
         }
-        // mlog("KERNEL", " %x|%x|%d\n", MLOG_PRINT, (uint32_t)mmap[i].entry_base, (uint32_t)mmap[i].entry_length, mmap[i].type);
-        // printf("%x",  mmap[i].entry_length);
-        // printf("|%d   |\n", mmap[i].type);
+        mlog("KERNEL", " %x|%x|%d\n", MLOG_PRINT, (uint32_t)mmap[i].entry_base, (uint32_t)mmap[i].entry_length, mmap[i].type);
     }
     for(uint32_t i = 0; i < 512; i++){
         total_memory_unusable++;
@@ -207,7 +247,6 @@ int pm_init(kernel_info_t *kernel_info){
     void *kernel_addr = (void *)_start;
     while(get_paddr(kernel_addr)){
     
-        // printf("%x\n", kernel_addr);
         pm_reserve(get_paddr(kernel_addr));
         kernel_addr += 0x1000;
     }
@@ -286,8 +325,7 @@ void *get_new_page(uint32_t flags){
 void *kmalloc(uint32_t size_pgs){
     // asm("cli");
     if(heap_base != 0){
-        printf("Heap Alloc!\n");
-        return 0;
+        return heap_alloc(size_pgs);
     }
     uint32_t i = 0xc0000000 >> 12; //4mb/4096 (start search at 1mb line)
     while(i < (1 << 22)){
@@ -341,6 +379,9 @@ void *kmalloc_page_paddr(uint32_t paddr, uint32_t size_pgs){
     }
 }
 void *kfree(void *vaddr){
+    if(heap_base != 0){
+        heap_free(vaddr);
+    }
     if(!get_pflags(vaddr)){
         return 0;
     }
