@@ -96,6 +96,7 @@ uint32_t heap_init(uint32_t size_bytes){
 }
 
 void *heap_alloc(uint32_t size_pgs){
+    spinlock_acquire(&heap_lock);
     uint32_t max_index = heap_map_size * HEAP_ENTRIES_PER_INDEX;
     uint32_t start = 0;
     for(uint32_t i = heap_first_free; i < max_index; i++){
@@ -113,15 +114,21 @@ void *heap_alloc(uint32_t size_pgs){
             break;
         }
     }
+    if(start == 0 && get_heap_index(start)){
+        return 0;
+        spinlock_release(&heap_lock);
+    }
     for(uint32_t i = 0; i < size_pgs; i++){
         uint32_t page_flags = KMALLOC_USED | (KMALLOC_LINK_LAST * (i > 0)) | (KMALLOC_LINK_NEXT * (i < size_pgs - 1));
         set_heap_index(start + i, page_flags);
         // printf("%d @ %d\n", page_flags, start + i);
     }
+    spinlock_release(&heap_lock);
     return heap_base + start * PAGE_SIZE_BYTES;
 }
 
 void *heap_free(void* addr){
+    spinlock_acquire(&heap_lock);
     uint32_t heap_index = (addr - heap_base) >> 12;
     if(heap_index < heap_map_size * HEAP_ENTRIES_PER_INDEX) return 0;
     while(get_heap_index(heap_index) & KMALLOC_LINK_LAST){
@@ -132,10 +139,11 @@ void *heap_free(void* addr){
         set_heap_index(heap_index, 0);
         
         if (!(flags & KMALLOC_LINK_NEXT))
-            break;
+        break;
         
         heap_index++;
     }
+    spinlock_release(&heap_lock);
     return 0;
 }
 
