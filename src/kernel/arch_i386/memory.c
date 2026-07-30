@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include "../shared/memory.h"
 #include "../shared/kstdlib.h"
+#include "../shared/spinlock.h"
 #include "../drivers/cpuio.h"
 #define mmap_count 0x20000
 
@@ -23,20 +24,11 @@ uint32_t heap_first_free;
 const uint32_t HEAP_ENTRY_SIZE_BITS = 4;
 const uint32_t HEAP_ENTRIES_PER_INDEX = 2;
 
+spinlock_t pm_lock;
+spinlock_t page_lock;
+spinlock_t heap_lock;
+
 uint32_t pm_first_free = 0;
-
-
-void get_physical_memory_usage(){
-    uint32_t used_pages = 0;
-    for(uint32_t i = 512; i < 8192; i++){
-        for(int j = 0; j < 8; j++){
-            if((pm_map[i] & (1 << j))){
-                used_pages++;
-            }
-        }
-    }
-}
-
 
 inline uint8_t get_heap_index(uint32_t index){
     if (index >= heap_map_size * HEAP_ENTRIES_PER_INDEX) return 0;
@@ -68,7 +60,7 @@ inline uint32_t heap_address_to_index(void *address)
 }
 
 uint32_t heap_init(uint32_t size_bytes){
-    get_physical_memory_usage();
+    spinlock_init(&heap_lock);
     uint32_t heap_pages = (size_bytes + PAGE_SIZE_BYTES - 1)/PAGE_SIZE_BYTES;
     heap_map_size = heap_pages/HEAP_ENTRIES_PER_INDEX;
     uint32_t heap_map_size_pages = (heap_map_size + PAGE_SIZE_BYTES - 1)/PAGE_SIZE_BYTES;
@@ -149,6 +141,7 @@ void *heap_free(void* addr){
 
 uint32_t pm_alloc(){
     // asm("cli");
+    spinlock_acquire(&pm_lock);
     for(uint32_t i = pm_first_free; i < mmap_count; i++){
         for(int j = 0; j < 8; j++){
             if(!(pm_map[i] & (1 << j))){
@@ -156,15 +149,18 @@ uint32_t pm_alloc(){
                 if(i > pm_first_free){
                     pm_first_free = i;
                 }
+                spinlock_release(&pm_lock);
                 return (i << 3 | j) << 12;
             }
         }
     }
+    spinlock_release(&pm_lock);
     return 0;
     // asm("sti");
 }
 uint32_t pm_alloc_index(uint32_t index){
     // asm("cli");
+    spinlock_acquire(&pm_lock);
     for(uint32_t i = 0; i < 2; i++){
         for(int j = 0; j < 8; j++){
             // if(!(pm_map[i] & (1 << j))){
@@ -172,6 +168,7 @@ uint32_t pm_alloc_index(uint32_t index){
                 // }
         }
     }
+    spinlock_release(&pm_lock);
     return (index << 3) << 12;
     // asm("sti");
 }
@@ -179,6 +176,7 @@ uint32_t pm_alloc_64kaligned(){
     // asm("cli");
     uint32_t cont = 0;
     uint32_t current = 0;
+    spinlock_acquire(&pm_lock);
     for(uint32_t i = 0; i < mmap_count; i++){
         if(i & 1 && cont < 1){
             continue;
@@ -193,25 +191,33 @@ uint32_t pm_alloc_64kaligned(){
             }
         }
         if(cont == 1){
+            spinlock_release(&pm_lock);
             return pm_alloc_index(current);
         }
         current = i;
         cont++;
     }
+    spinlock_release(&pm_lock);
     return 0;
     // asm("sti");
 }
 void pm_free(uint32_t address){
+    spinlock_acquire(&pm_lock);
     pm_map[address >> 15] &= ~(1 << ((address>>12) & 7));
     if((address >> 15) < pm_first_free){
         pm_first_free = address >> 15;
     }
+    spinlock_release(&pm_lock);
 }
 void pm_reserve(uint32_t address){
+    spinlock_acquire(&pm_lock);
     pm_map[address >> 15] |= 1 << ((address>>12) & 7);
     pm_first_free = address >> 15;
+    spinlock_release(&pm_lock);
 }
 int pm_init(kernel_info_t *kernel_info){
+    spinlock_init(&pm_lock);
+    spinlock_init(&page_lock);
     pm_first_free = 0;
     total_memory_unusable = 0;
     heap_base = 0;
@@ -327,6 +333,7 @@ void *kmalloc(uint32_t size_pgs){
     if(heap_base != 0){
         return heap_alloc(size_pgs);
     }
+    spinlock_acquire(&page_lock);
     uint32_t i = 0xc0000000 >> 12; //4mb/4096 (start search at 1mb line)
     while(i < (1 << 22)){
         uint8_t found = 1;
@@ -345,18 +352,22 @@ void *kmalloc(uint32_t size_pgs){
             uint32_t physaddr = pm_alloc();
             if(physaddr == 0){
                 kfree((void *)(i<<22));
+                spinlock_release(&page_lock);
                 return 0;
             }
             map((void *)((i + j) << 12), (void*)physaddr, flags);
         }
         // asm("sti");
+        spinlock_release(&page_lock);
         return (void*)(i << 12);
     }
     // asm("sti");
+    spinlock_release(&page_lock);
     return 0;
 }
 void *kmalloc_page_paddr(uint32_t paddr, uint32_t size_pgs){
     uint32_t i = 0xc0000000 >> 12; //4mb/4096 (start search at 1mb line)
+    spinlock_acquire(&page_lock);
     while(i < (1 << 22)){
         uint8_t found = 1;
         for(uint32_t j = 0; j < size_pgs; j++){
@@ -375,8 +386,11 @@ void *kmalloc_page_paddr(uint32_t paddr, uint32_t size_pgs){
 
             map((void *)((i + j) << 12), (void*)physaddr, flags);
         }
+        spinlock_release(&page_lock);
         return (void*)(i << 12);
     }
+    spinlock_release(&page_lock);
+    return 0;
 }
 void *kfree(void *vaddr){
     if(heap_base != 0){
@@ -385,6 +399,7 @@ void *kfree(void *vaddr){
     if(!get_pflags(vaddr)){
         return 0;
     }
+    spinlock_acquire(&page_lock);
     uint32_t addr = (uint32_t)vaddr;
     addr &= ~0xfff;
     while(get_pflags((void *)addr)&PT_LINK_L) addr -= 0x1000;
@@ -400,5 +415,6 @@ void *kfree(void *vaddr){
 
         addr += 0x1000;
     }
+    spinlock_release(&page_lock);
     return 0;
 }

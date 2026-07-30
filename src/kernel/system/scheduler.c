@@ -3,6 +3,7 @@
 #include "../shared/string.h"
 #include "../shared/kstdlib.h"
 #include "../shared/memory.h"
+#include "../shared/spinlock.h"
 
 volatile process_t *processes;
 volatile uint32_t process_queue[PROCESS_COUNT];
@@ -10,6 +11,8 @@ uint32_t volatile active_processes;
 uint32_t volatile current_pid;
 uint32_t volatile queue_length;
 uint32_t volatile current_queue_index;
+
+spinlock_t proc_lock;
 
 void scheduler_init(){
     processes = kmalloc((PROCESS_COUNT * sizeof(process_t) + 4095) / 4096);
@@ -21,21 +24,28 @@ void scheduler_init(){
     queue_length = 0;
     current_queue_index = 0;
     active_processes = 0;
+    spinlock_init(&proc_lock);
     install_irq_handler(schedule, 0);
 }
 uint32_t timer = 0;
 
-void add_process_queue(uint32_t pid){
-    // asm("cli");
+void add_process_queue_nolock(uint32_t pid){
     asm volatile ("" : : :"memory");
     process_queue[queue_length] = pid;
     queue_length++;
-    // asm("sti");
+    return;
+}
+
+void add_process_queue(uint32_t pid){
+    spinlock_acquire(&proc_lock);
+    add_process_queue_nolock(pid);
+    spinlock_release(&proc_lock);
     return;
 }
 //Watch out for this function.
 void remove_process_queue(uint32_t pid){
     // asm("cli");
+    spinlock_acquire(&proc_lock);
     uint32_t last_queue_index = queue_length-1;
     uint32_t old_index = -1;
     for(uint32_t i = 0; i <= last_queue_index; i++){
@@ -46,6 +56,7 @@ void remove_process_queue(uint32_t pid){
     }
     if(old_index == last_queue_index || old_index > queue_length || old_index > PROCESS_COUNT){
         // asm("sti");
+        spinlock_release(&proc_lock);
         return;
     }
     process_queue[old_index] = process_queue[last_queue_index];
@@ -53,6 +64,7 @@ void remove_process_queue(uint32_t pid){
     queue_length--;
     if(current_queue_index > 0)
         current_queue_index--;
+    spinlock_release(&proc_lock);
     // asm("sti");
 }
 
@@ -74,10 +86,14 @@ cpu_registers_t *schedule(cpu_registers_t *regs){
 uint32_t spawn_new_process(cpu_registers_t defaultregs, char **argv, uint32_t argc, void *cr3){
     // asm("cli");
     uint32_t i = current_pid;
+    spinlock_acquire(&proc_lock);
     while(processes[i].flags.present){
         i++;
         if(i >= PROCESS_COUNT) i = 0;
-        if(i == current_pid) return -1;
+        if(i == current_pid){
+            spinlock_release(&proc_lock);
+            return -1;
+        }
     }
     // i += !active_processes;
     active_processes++;
@@ -96,8 +112,9 @@ uint32_t spawn_new_process(cpu_registers_t defaultregs, char **argv, uint32_t ar
     new_proc.file_descriptors = kmalloc((DEFAULT_FD_MAX * sizeof(void **) + 4095)/4096);
     new_proc.max_descriptors = DEFAULT_FD_MAX;
     processes[i] = new_proc;
-    add_process_queue(i);
+    add_process_queue_nolock(i);
     // asm("sti");
+    spinlock_release(&proc_lock);
     return i;
 }
 

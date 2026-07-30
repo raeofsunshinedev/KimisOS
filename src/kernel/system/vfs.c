@@ -16,14 +16,14 @@
 spinlock_t vfs_lock;
 
 void vfs_init(){
-    spinlock_release(vfs_lock);
+    spinlock_init(&vfs_lock);
 }
 
 vfile_t *fcreate(char *path, FS_FILE_FLAGS flags){
     // return 0;
-    spinlock_acquire(vfs_lock);
+    spinlock_acquire(&vfs_lock);
     vfile_t *returnable = vfcreate(get_root_dir(), path, flags);
-    spinlock_release(vfs_lock);
+    spinlock_release(&vfs_lock);
     return returnable;
 }
 
@@ -67,11 +67,11 @@ vfile_t *vfcreate(vfile_t *parent_dir, char *relpath, FS_FILE_FLAGS flags){
 }
 
 int fdelete(vfile_t *file_entry){
-    spinlock_acquire(vfs_lock);
+    spinlock_acquire(&vfs_lock);
     if(!file_entry || !file_entry->fileops || !file_entry->fileops->delete){
         return 0;
     }
-    spinlock_release(vfs_lock);
+    spinlock_release(&vfs_lock);
     return file_entry->fileops->delete(file_entry);
 }
 //Is expected to overwrite, not append if it is an actual file

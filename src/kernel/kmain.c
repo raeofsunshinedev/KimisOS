@@ -14,6 +14,7 @@
 #include "drivers/ustar.h"
 #include "system/initrc.h"
 #include "system/ramfs.h"
+#include "shared/spinlock.h"
 
 kernel_info_t *boot_info = 0;
 
@@ -37,6 +38,13 @@ void sysinit(){
     }
     const kernel_config_t config = get_config_const();
     heap_init(config.kernel_heap_size);
+    
+    spinlock_t spinlock = {};
+    spinlock_init(&spinlock);
+    spinlock_acquire(&spinlock);
+    printf("Test!\n");
+    spinlock_release(&spinlock);
+    
     printf("Bleh\n");
     for(;;);
 }
@@ -53,7 +61,6 @@ extern void kmain(kernel_info_t *kernel_info){
     // printf("Test start!\n");
     // kmalloc(0x4000);
     // printf("Test end!\n");
-    
     vfs_init();
     fcreate("/tmp", FS_FILE_IS_DIR);
     fcreate("/dev", FS_FILE_IS_DIR);

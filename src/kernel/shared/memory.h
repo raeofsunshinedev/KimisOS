@@ -91,6 +91,3 @@ void *kfree(void *vaddr);
 void *kmalloc_page_paddr(uint32_t paddr, uint32_t size_pgs);
 
 uint32_t heap_init(uint32_t size_bytes);
-
-//debug function
-void get_physical_memory_usage();
