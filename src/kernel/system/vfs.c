@@ -71,8 +71,9 @@ int fdelete(vfile_t *file_entry){
     if(!file_entry || !file_entry->fileops || !file_entry->fileops->delete){
         return 0;
     }
+    int return_value = file_entry->fileops->delete(file_entry);
     spinlock_release(&vfs_lock);
-    return file_entry->fileops->delete(file_entry);
+    return return_value;
 }
 //Is expected to overwrite, not append if it is an actual file
 //Devices and anything Not A File is exempt (i.e. Blockdevs, chardevs, etc)

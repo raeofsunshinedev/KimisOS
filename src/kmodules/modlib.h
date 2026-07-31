@@ -2,6 +2,8 @@
 #include <stdint.h>
 #include "../kernel/shared/spinlock.h"
 
+#define PAGE_SIZE_BYTES 4096
+
 enum MODULE_API_FUNCS{
     
     MODULE_API_ADDFUNC,//adds function to kernel API handler
@@ -51,6 +53,12 @@ typedef struct cpu_registers{
 enum MESSAGES{
     MESSAGE_MOUNT_FS,
     MESSAGE_UNMOUNT_FS,
+    MESSAGE_PARTITION_DETECT,
+    MESSAGE_PARTITION_REFRESH,
+    
+    MESSAGE_DEVICE_ADD,
+    MESSAGE_DEVICE_REMOVE,
+    
     MESSAGE_BROADCAST = 0x80000000, //placeholder
 };
 

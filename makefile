@@ -10,9 +10,9 @@ OBJS := $(patsubst src/kernel/%.c, bin/kernel/%.o, $(SRCS))
 all: bootloader tools kernel
 	cp bin/bootloader.bin image.bin
 	qemu-img resize -f raw image.bin 64M
-	tar --format=ustar -cf initrd.rd idm.elf ifsm.elf initrc.conf
+	tar --format=ustar -cf initrd.rd idm.elf ifsm.elf part_mgr.elf initrc.conf 
 # 	./diskwrite idm.elf ifsm.elf kernel.elf initrc.conf -o image.bin
-	./diskwrite initrd.rd kernel.elf -o image.bin
+	./diskwrite initrd.rd kernel.elf hellofat.txt -o image.bin
 	sudo mount image.bin mount
 # 	sudo mkdir mount/mod # for kernel modules
 # 	sudo mkdir mount/bin # for binary executables
@@ -43,6 +43,7 @@ kernel:
 	nasm src/kernel/entry.s -o bin/kernel/entry.o -f elf32
 	gcc src/kmodules/disk_driver.c $(CFLAGS_MODULE) -o bin/modules/disk_driver.o -m32
 	gcc src/kmodules/fs_driver.c $(CFLAGS_MODULE) -o bin/modules/fs_driver.o -m32
+	gcc src/kmodules/partition_mgr.c $(CFLAGS_MODULE) -o bin/modules/part_mgr.o -m32
 	sh c_build_helper.sh
 	nasm src/kernel/arch_i386/idt.s -o bin/kernel/idt.o -felf32
 	# ld -T linker.ld bin/kernel/entry.o bin/kernel/*.o -melf_i386
@@ -51,6 +52,7 @@ kernel:
 	ld -pie bin/modules/disk_driver.o bin/kernel/string.o -o idm.elf -melf_i386 -e init --no-dynamic-linker -static -nostdlib
 # 	ld bin/modules/fs_driver.o -o ifsm.elf -melf_i386
 	ld -pie bin/modules/fs_driver.o bin/kernel/string.o -o ifsm.elf -melf_i386 -e init --no-dynamic-linker -static -nostdlib
+	ld -pie bin/modules/part_mgr.o bin/kernel/string.o -o part_mgr.elf -melf_i386 -e init --no-dynamic-linker -static -nostdlib
 # %.o: $(SRCS)
 # 	mkdir -p bin/kernel/$(shell dirname $@)
 # 	$(CC) $(CFLAGS) $< -o $@

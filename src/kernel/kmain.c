@@ -39,18 +39,6 @@ void sysinit(){
     const kernel_config_t config = get_config_const();
     heap_init(config.kernel_heap_size);
     
-    char *test1 = kmalloc(1);
-    char *test2 = kmalloc(1);
-    printf("Post alloc\n");
-    for(uint32_t i = 0; i < 4096; i++){
-        test1[i] = 0;
-    }
-    vfile_t *test = fopen("/dev/disk/ide0");
-    printf("Test ptr: %x\n", test1);
-    // fread(test, test2, 0, 512);
-    fwrite(test, test1, 0, 512);
-    fwrite(test, test1, 0, 512);
-    
     printf("Bleh\n");
     for(;;);
 }
