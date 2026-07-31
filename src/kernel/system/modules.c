@@ -87,7 +87,7 @@ uint32_t module_api(uint32_t func, ...){
             break;
         case MODULE_API_OPEN:
             name = va_arg(vars, char *);
-            printf("Requested file: %s\n", name);
+            // printf("Requested file: %s\n", name);
             return_value = (uint32_t)fopen(name);
             break;
         case MODULE_API_MAP:

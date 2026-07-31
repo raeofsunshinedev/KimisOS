@@ -52,7 +52,6 @@ inline void *heap_index_to_address(uint32_t index){
 
 inline uint32_t heap_address_to_index(void *address)
 {
-    printf("Addr: %x Base: %x, %x, %d\n", address, heap_base, (uint32_t)heap_base + heap_map_size * HEAP_ENTRIES_PER_INDEX * PAGE_SIZE_BYTES, (uint32_t)address < (uint32_t)heap_base);
     if ((uint32_t)address >= (uint32_t)heap_base + heap_map_size * HEAP_ENTRIES_PER_INDEX * PAGE_SIZE_BYTES || (uint32_t)address < (uint32_t)heap_base){
         return (uint32_t)-1;
     }
@@ -66,9 +65,7 @@ uint32_t heap_init(uint32_t size_bytes){
     uint32_t heap_map_size_pages = (heap_map_size + PAGE_SIZE_BYTES - 1)/PAGE_SIZE_BYTES;
     mlog("KERNEL", "Heap map size: %d, %d\n", MLOG_PRINT, heap_map_size, heap_map_size_pages);
     heap_map = kmalloc(heap_map_size_pages);
-    // printf("Kernel heap size: %x", heap_pages);
     heap_base = kmalloc(heap_pages);
-    // printf("Test\n");
     heap_first_free = 0;
     
     for(uint32_t i = 0; i < heap_map_size; i++){
@@ -115,8 +112,8 @@ void *heap_alloc(uint32_t size_pgs){
         }
     }
     if(start == 0 && get_heap_index(start)){
-        return 0;
         spinlock_release(&heap_lock);
+        return 0;
     }
     for(uint32_t i = 0; i < size_pgs; i++){
         uint32_t page_flags = KMALLOC_USED | (KMALLOC_LINK_LAST * (i > 0)) | (KMALLOC_LINK_NEXT * (i < size_pgs - 1));
@@ -128,9 +125,9 @@ void *heap_alloc(uint32_t size_pgs){
 }
 
 void *heap_free(void* addr){
-    spinlock_acquire(&heap_lock);
     uint32_t heap_index = (addr - heap_base) >> 12;
-    if(heap_index < heap_map_size * HEAP_ENTRIES_PER_INDEX) return 0;
+    if(heap_index > heap_map_size * HEAP_ENTRIES_PER_INDEX) return 0;
+    spinlock_acquire(&heap_lock);
     while(get_heap_index(heap_index) & KMALLOC_LINK_LAST){
         heap_index--;
     }
@@ -403,6 +400,7 @@ void *kmalloc_page_paddr(uint32_t paddr, uint32_t size_pgs){
 void *kfree(void *vaddr){
     if(heap_base != 0){
         heap_free(vaddr);
+        return 0;
     }
     if(!get_pflags(vaddr)){
         return 0;

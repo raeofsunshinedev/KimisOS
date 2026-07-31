@@ -2,6 +2,7 @@
 #include "modlib.h"
 #include "../kernel/drivers/cpuio.h"
 #include "../kernel/shared/string.h"
+#include "../kernel/shared/spinlock.h"
 #include "disk_driver.h"
 
 #define MODULE_NAME "KIDM"
@@ -292,13 +293,13 @@ int ata_write(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
     asm("cli");
     
     uint32_t cpid = api(MODULE_API_GET_CPID);
-    api(MODULE_API_PRINT, MODULE_NAME, "Cpid: %x", cpid);
+    // api(MODULE_API_PRINT, MODULE_NAME, "Cpid: %x", cpid);
     api(MODULE_API_BLOCK_PID, cpid);
     transferring_pid = cpid;
     
     outb(bm_base, 0x01); 
     
-    asm("sti");
+    if(!api(MODULE_API_IS_INTERRUPT)) asm("sti");
     
     transferring_disk_index = file->id;
     
@@ -624,6 +625,16 @@ void init(KOS_MAPI_FP module_api, uint32_t api_version){
     api(MODULE_API_PRINT, MODULE_NAME, "Assigned Key: %x\n", module_data.key);
     api(MODULE_API_ADDINT, 15, module_data.key, int_handler);
     api(MODULE_API_ADDINT, 14, module_data.key, int_handler);
+    
+    ide_fileops = (fileops_t){
+        0,
+        0,
+        ata_write,
+        ata_read,
+        0,
+        0,
+    };
+    
     // api(MODULE_API_ADDINT, 0, module_data.key, int_handler);
     vfile_t *pci_drive_dir = fopen(api, "/dev/pci/disk");
     if(!pci_drive_dir){
