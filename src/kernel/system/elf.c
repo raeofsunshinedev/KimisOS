@@ -10,16 +10,16 @@ char *flags[] = {"---", "X--", "-W-", "XW-", "--R", "X-R", "-WR", "XWR"};
 
 void *load_segment(program_entry_t entry, void *file_data, void *base_segment, uint32_t map_flags){
     // mlog("ELFLOAD", "p_addr: %d\n", MLOG_DEBUG, entry.paddr);
-    // printf("Type: %x, Flags: %s, Vaddr: %x, Offset: %x, Size: %x, Align: %x\n", entry.type, flags[entry.flags], entry.paddr, entry.data_offset, entry.msize, entry.alignment);
-    uint32_t *segment;
+    printf("Type: %x, Flags: %s, Vaddr: %x, Offset: %x, Size: %x, Align: %x\n", entry.type, flags[entry.flags], entry.paddr, entry.data_offset, entry.msize, entry.alignment);
+    uint8_t *segment;
     // printf("Base: %x\n", base_segment);
     if(entry.type == 1){
         if(((elf_header_t *)(file_data))->type == ELF_TYPE_SHARED){
-            segment = base_segment + (entry.vaddr & 0xfffff000);
+            segment = (base_segment + (entry.vaddr));
             memclr(segment, entry.msize);
             
-            for(uint32_t i = 0; i < entry.fsize/sizeof(uint32_t) + 1; i++){
-                segment[i] = ((uint32_t *)(file_data))[i + entry.data_offset/sizeof(uint32_t)];
+            for(uint32_t i = 0; i < entry.fsize; i++){
+                segment[i] = ((uint8_t*)file_data)[i + entry.data_offset];
             }
         }
         else if(((elf_header_t *)(file_data))->type == ELF_TYPE_EXE){
@@ -46,10 +46,15 @@ void *load_elf(void *file_data, uint32_t map_flags){
     uint32_t program_header_count = header->program_entry_count;
     mlog(MODULE_NAME, "PROGRAM ENTRIES: %d\n", MLOG_PRINT, program_header_count);
     uint32_t size_pages = 0;
+    uint32_t limit = 0;
     for(uint32_t i = 0; i < program_header_count; i++){
-        size_pages += (program_header[i].msize + PAGE_SIZE_BYTES - 1) / PAGE_SIZE_BYTES;
+        // size_pages += (program_header[i].msize + PAGE_SIZE_BYTES - 1) / PAGE_SIZE_BYTES;
+        limit = unsigned_max(limit, program_header[i].vaddr + program_header[i].msize);
     }
-    // printf("Requires %d pages\n", size_pages)
+    
+    printf("Limit: %x, Pages: %d", limit, (limit + PAGE_SIZE_BYTES - 1)/PAGE_SIZE_BYTES);
+    size_pages = (limit + PAGE_SIZE_BYTES - 1)/PAGE_SIZE_BYTES;
+    
     void *base_segment = kmalloc(size_pages);
     for(uint32_t i = 0; i < program_header_count; i++){
         base_segment = load_segment(program_header[i], file_data, base_segment, map_flags);

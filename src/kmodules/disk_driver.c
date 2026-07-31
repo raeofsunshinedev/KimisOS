@@ -626,6 +626,7 @@ void init(KOS_MAPI_FP module_api, uint32_t api_version){
     api(MODULE_API_ADDINT, 15, module_data.key, int_handler);
     api(MODULE_API_ADDINT, 14, module_data.key, int_handler);
     
+    //must be initialized here, cause the pointer will be assigned at compile time if not
     ide_fileops = (fileops_t){
         0,
         0,

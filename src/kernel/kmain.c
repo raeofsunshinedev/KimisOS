@@ -47,6 +47,9 @@ void sysinit(){
     }
     vfile_t *test = fopen("/dev/disk/ide0");
     printf("Test ptr: %x\n", test1);
+    // fread(test, test2, 0, 512);
+    fwrite(test, test1, 0, 512);
+    fwrite(test, test1, 0, 512);
     
     printf("Bleh\n");
     for(;;);
