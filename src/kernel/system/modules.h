@@ -1,6 +1,7 @@
 #pragma once
 #include "vfs.h"
 #include <stdint.h>
+#include <stdarg.h>
 #include "../shared/kstdlib.h"
 
 #define MODULE_PRESENT 0x80
@@ -32,6 +33,7 @@ enum MODULE_API_FUNCS{
     MODULE_API_PMALLOC64K,
     MODULE_API_KMALLOC_PADDR,
     MODULE_MESSAGE_HANDLER,
+    MODULE_API_DISPATCH_MESSAGE,
     MODULE_API_BLOCK_PID,
     MODULE_API_UNBLOCK_PID,
     MODULE_API_GET_CPID,
@@ -61,5 +63,6 @@ typedef struct module{
 }module_t;
 
 uint32_t dispatch_message(uint32_t message, ...);
+uint32_t va_dispatch_message(uint32_t message, va_list vars);
 void modules_init();
 void module_start(void *ptr);

@@ -555,6 +555,7 @@ uint8_t ata_identify(uint32_t index, uint16_t disk){
     new_file->id = index;
     new_file->fileops = &ide_fileops;
     puts(api, "KIDM", "Valid Drive!\n");
+    api(MODULE_API_DISPATCH_MESSAGE, (uint32_t)MESSAGE_DEVICE_ADD, new_file);
     return 0;
 }
 

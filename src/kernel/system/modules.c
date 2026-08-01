@@ -149,17 +149,17 @@ uint32_t module_api(uint32_t func, ...){
         case MODULE_API_IS_INTERRUPT:
             return get_in_interrupt();
             break;
+        case MODULE_API_DISPATCH_MESSAGE:
+            uint32_t message = va_arg(vars, uint32_t);
+            va_dispatch_message(message, vars);
+            break;
     }
     va_end(vars);
     return return_value;
 }
 
 
-
-uint32_t dispatch_message(uint32_t message, ...){
-    va_list args;
-    va_start(args, message);
-    
+uint32_t va_dispatch_message(uint32_t message, va_list args){
     for(int i = 0; i < modules->size; i++){
         module_t *module = vector_get(i, modules);
         uint32_t key = module->key;
@@ -179,14 +179,27 @@ uint32_t dispatch_message(uint32_t message, ...){
                 
                 result = handler(message, srcfile, destname, offset);
                 break;
+            case MESSAGE_UNMOUNT_FS:
+            case MESSAGE_PARTITON_DETECT:
+            case MESSAGE_DEVICE_REMOVE:
+            case MESSAGE_DEVICE_ADD:
+                srcfile = va_arg(args, vfile_t *);
+                result = handler(message, srcfile);
+                break;
         }
         if((int32_t) message >= 0 && result){
-            va_end(args);
             return result;
         }
     }
-    va_end(args);
     return 0;
+}
+
+uint32_t dispatch_message(uint32_t message, ...){
+    va_list args;
+    va_start(args, message);
+    uint32_t result = va_dispatch_message(message, args);
+    va_end(args);
+    return result;
 }
 
 void module_start(void *ptr){
