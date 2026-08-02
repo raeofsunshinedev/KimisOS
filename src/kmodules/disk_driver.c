@@ -554,6 +554,7 @@ uint8_t ata_identify(uint32_t index, uint16_t disk){
     // new_file->write = ata_write;
     new_file->id = index;
     new_file->fileops = &ide_fileops;
+    new_file->minimum_rw_size = 512;
     puts(api, "KIDM", "Valid Drive!\n");
     api(MODULE_API_DISPATCH_MESSAGE, (uint32_t)MESSAGE_DEVICE_ADD, new_file);
     return 0;

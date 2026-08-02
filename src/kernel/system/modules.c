@@ -151,7 +151,7 @@ uint32_t module_api(uint32_t func, ...){
             break;
         case MODULE_API_DISPATCH_MESSAGE:
             uint32_t message = va_arg(vars, uint32_t);
-            va_dispatch_message(message, vars);
+            return va_dispatch_message(message, vars);
             break;
     }
     va_end(vars);

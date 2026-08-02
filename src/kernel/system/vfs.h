@@ -36,6 +36,8 @@ typedef struct virtual_file{
     uint32_t size; //should be in bytes
     uint32_t offset; //for use in drivers
     
+    uint16_t minimum_rw_size;
+    
     uint8_t owner_uid;
     uint8_t owner_gid;
     uint32_t last_modified;
