@@ -92,7 +92,7 @@ Even if you're here for something else, It's time for spinlocks. Do it. You know
 //track 0 not found
 #define ATA_TK0NF(a) a & 0x2
 //data address mark not found
-#define ATA_AMNF(a) a & 0x1;
+#define ATA_AMNF(a) a & 0x1
 #define ATA_MASTER 0xa0
 #define ATA_SLAVE 0xb0
 //commands
