@@ -1,179 +1,591 @@
-# Kernel Modules
+# Kernel Module API
 
-Kernel modules are special pieces of software loaded into kernelspace, and persisting along with the kernel among all processes. These can be loaded at both runtime and during boot time. Boot time modules **must** be contained within the initrd, or be loaded by the `initrc` by a mounted filesystem.
+## Overview
 
-## The API
+The kernel is composed of independent loadable modules.
 
-When a module starts, two arguments are passed to it: The API's function pointer, and the version number. It is suggested that modules check the version number to make sure they are compatible with the API. Currently, all modules should check to make sure that the version number is `0`. Any number other than zero should be assumed incompatible, and the module should exit.
+Modules communicate through:
 
-It is expected that every module calls `MODULE_API_REGISTER`, to obtain a `key`, which is required for certain operations, or making sure that the correct information is assigned to the correct module.
+- The kernel module API
+- `vfile_t` objects
+- The kernel message dispatcher
 
-### API Functions
+Modules must not directly reference other modules. Hardware drivers, partition managers, and filesystem implementations communicate indirectly through kernel-managed interfaces.
 
-<!-- 
-enum MODULE_API_FUNCS{
-    
-    MODULE_API_ADDFUNC,//adds function to kernel API handler
-    MODULE_API_REGISTER, //registers the module as active using information provided from the module
-    MODULE_API_DELFUNC, //delete function from kernel API handler
-    MODULE_API_ADDINT, //set interrupt handler
-    MODULE_API_DELINT, //delete interrupt handler
-    MODULE_API_PRINT, //print to terminal
-    MODULE_API_READ, //read from virtual file
-    MODULE_API_WRITE, //write to virtual file
-    MODULE_API_CREAT, //create a virtual file and assigns it to the the proper module (requires having a read and write function passed)
-    MODULE_API_DELET, //delete a virtual file
-    MODULE_API_OPEN,
-    MODULE_API_MAP, //map physical address to virtual address
-    MODULE_API_UNMAP, //unmap physical address to virtual address
-    MODULE_API_PADDR, //get physical address of memory
-    MODULE_API_MALLOC, //allocate memory in 4kb blocks
-    MODULE_API_FREE, //free memory allocated by malloc
-    MODULE_API_PMALLOC64K,
-    MODULE_API_KMALLOC_PADDR,
-    MODULE_MESSAGE_HANDLER,
+Typical device flow:
+
+```text
+PCI Enumerator
+      │
+      ▼
+Storage Driver
+      │
+      ├── Detects hardware
+      ├── Creates a vfile_t device object
+      └── Sends MESSAGE_DEVICE_ADD
+                    │
+                    ▼
+Partition Manager
+      │
+      ├── Reads partition table
+      ├── Creates partition vfile_t objects
+      └── Exposes partitions through VFS
+```
+
+---
+
+# Module Binary Requirements
+
+All modules must be compiled as position-independent executables. Static module loading is not currently supported.
+
+Because modules are relocated at load time, absolute addresses cannot be assumed during compilation.
+
+Function pointers must not be assigned in global structures at compile time.
+
+Incorrect:
+
+```c
+fileops_t disk_ops = {
+    0,
+    0,
+    disk_write,
+    disk_read,
+    0,
+    0
 };
--->
-#### MODULE_API_ADDFUNC
+```
 
-Unused. Treated as no-op
+The function addresses may not be valid after relocation.
 
-#### MODULE_API_REGISTER
+Correct:
 
-Arguments: `module_t *structure`
+```c
+fileops_t disk_ops;
 
-Obtains a key, returned in the `structure` structure. Structure argument shall reference a variable within the module of type `module_t`. Returns -1 if `structure` is null. Returns 0 on success
+void init(KOS_MAPI_FP api, uint32_t version) {
+    disk_ops.write = disk_write;
+    disk_ops.read = disk_read;
+}
+```
 
-#### MODULE_API_ADDINT
+This applies to all structures containing function pointers:
 
-Arguments: `uint32_t interrupt_index, uint32_t key, void (*interrupt_handler)(register_t* registers)`
+- `module_t`
+- `fileops_t`
+- Driver callback tables
 
-Registers an interrupt handler to handle the IRQ corresponding with `interrupt_index`. Returns -1 if `interrupt_index` is above or equal to 16 or below 0. Returns `0` on success.
+Initialize these fields during `init()`.
 
-#### MODULE_API_DELINT
+---
 
-Arguments: `uint32_t interrupt_index, uint32_t key`
+# Module Lifecycle
 
-Deletes interrupt handler for IRQ `interrupt_index`. Returns -1 if the module does not own the interrupt handler.
+Every module provides an initialization function:
 
-#### MODULE_API_PRINT
+```c
+void init(KOS_MAPI_FP api, uint32_t api_version);
+```
 
-Arguments: `char *name, char* string, ...`
+The kernel passes a function pointer providing access to the module API.
 
-Prints a formatted string attributed to `name`.
+```c
+typedef uint32_t (*KOS_MAPI_FP)(uint32_t function, ...);
+```
 
-#### MODULE_API_READ
+Modules should store this pointer.
 
-Arguments: `vfile_t *file, char *buffer, uint32_t offset, uint32_t count`
+Example:
 
-Reads `count` bytes from `file` into `buffer` starting at `offset`. Returns number of bytes read.
+```c
+static KOS_MAPI_FP api;
 
-#### MODULE_API_WRITE
+void init(KOS_MAPI_FP module_api, uint32_t version) {
+    api = module_api;
+}
+```
 
-Arguments: `vfile_t *file, char *buffer, uint32_t offset, uint32_t count`
+Modules may provide:
 
-Writes `count` bytes from `buffer` into `file` starting at `offset`. Returns number of bytes written.
+```c
+void fini(void);
+```
 
-#### MODULE_API_CREAT
+which is called before unloading.
 
-Arguments: `char *name, VFILE_TYPE ftype, void *arg1, void *arg2`
+---
 
-Creates a `file` using the arguments `arg1` and `arg2`.
+# Module Registration
 
-If ftype is either of the following: `VFILE_POINTER`, `VFILE_DIRECTORY`, `VFILE_MOUNT`, or `VFILE_SYMLINK`,
+Modules describe themselves using `module_t`.
 
-`arg1` corresponds to a pointer to data, `arg2` is unused.
+Example:
 
-If ftype is either of the following: `VFILE_FILE`, or `VFILE_DEVICE`
+```c
+module_t module_data = {
+    0,
+    MODULE_ID, // For use by the driver itself. Will probably be used for dependency tracking eventually.
+    "example", // Limited to 16 ASCII characters (16 bytes). Any more will corrupt the module_data structure.
+    0,
+    0,
+    0,
+};
+```
 
-`arg1` corresponds to the `read` function, and `arg2` corresponds to the `write` function
+Function pointers must be assigned during initialization.
 
-Returns the pointer to the new file in memory.
+```c
+void init(KOS_MAPI_FP api, uint32_t version) {
+    module_data.init_entry = init;
+    module_data.fini = fini;
 
-#### MODULE_API_DELET
+    api(MODULE_API_REGISTER,
+        &module_data);
+}
+```
 
-Not implemented, yet. Always returns -1.
+The kernel assigns a unique module key during registration.
 
-#### MODULE_API_OPEN
+The key is required when registering resources owned by the module.
 
-Arguments: `char *name`
+---
 
-Returns pointer to file in memory. If file does not exist, returns `NULL`
+# Virtual Files
 
-#### MODULE_API_MAP
+All kernel-visible objects are represented by `vfile_t`.
 
-Arguments: `void *vaddr, void *paddr, uint32_t flags`
+Examples:
 
-Maps physical address `paddr` to virtual address `vaddr`, Returns 0. 
+- Regular files
+- Directories
+- Block devices
+- Partitions
+- Mounted filesystems
+- Pipes
+- Links
 
-`flags` corresponds to the [page flags](https://osdev.wiki/wiki/paging).
+```c
+typedef struct virtual_file {
+    char name[212];
 
-#### MODULE_API_UNMAP
+    uint16_t flags;
+    fileops_t *fileops;
 
-Arguments: `void *addr`
+    uint32_t refcount;
+
+    uint32_t id;
+    void *private;
+
+    uint32_t size;
+    uint32_t offset;
 
-Unmaps `addr` from memory. Accesses to this memory after calling `MODULE_API_UNMAP` will result in a page fault.
+    uint16_t minimum_rw_size;
+} vfile_t;
+```
 
-#### MODULE_API_PADDR
+## Driver-Owned Fields
+
+The kernel does not assign meaning to:
 
-Arguments: `void *addr`
+```c
+uint32_t id;
+uint32_t offset;
+void *private;
+```
+
+These fields are owned by drivers and modules.
 
-Returns the physical address associated with the address `addr`.
+Common uses:
 
-#### MODULE_API_MALLOC
+```text
+id
+ |
+ +-- device index
+ +-- controller index
+ +-- module object index
 
-Arguments: `uint32_t sz_pages`
+offset
+ |
+ +-- physical offset
+ +-- filesystem offset
+ +-- driver-specific position
 
-Allocates `sz_pages` pages of contiguous virtual memory. Returns pointer to the newly allocated memory.
+private
+ |
+ +-- pointer to driver state
+ +-- pointer to filesystem metadata
+ +-- pointer into memory-backed storage
+ +-- pointer to module-specific structures
+```
 
-#### MODULE_API_FREE
+Modules should use these fields consistently with their names when possible, but the kernel does not enforce any meaning.
 
-Arguments: `void *addr`
+---
 
-Deallocates memory in `addr`. Returns `NULL`
+# File Operations
 
-#### MODULE_API_PMALLOC64K
+`vfile_t` operations are provided through `fileops_t`.
 
-No Arguments.
+```c
+typedef struct fileops {
+    struct virtual_file *(*create)(...);
+    int (*delete)(...);
+    int (*write)(...);
+    int (*read)(...);
+    void (*close)(...);
+    struct virtual_file *(*rfopen)(...);
+} fileops_t;
+```
 
-Allocates 64kb of contiguous physical memory and returns the physical address.
+Unused operations should be `NULL`.
 
-#### MODULE_API_KMALLOC_PADDR
+Example initialization:
 
-Arguments: `void *paddr, uint32_t size`
+```c
+fileops_t ops;
 
-Allocates `size` pages starting at physical address `paddr`. Returns virtual address.
+void init(...) {
+    ops.write = device_write;
+    ops.read = device_read;
+}
+```
 
-#### MODULE_API_MESSAGE_HANDLER 
+---
 
-Arguments: `uint32_t key, void (*handler)(uint32_t message, ...)`
+# Device Creation
 
-Assigns and marks valid message handler to recieve messages from the kernel to kernel modules. Returns -1 if the key is invalid, otherwise, returns 0. No messages have been implemented, but a will update with a table of messages as necessary.
+Hardware drivers expose devices by creating `vfile_t` objects.
 
-If a message handler cannot handle a message, it is required that the message handler returns -1.
+Typical flow:
 
-#### MODULE_API_BLOCK_PID
+```text
+Detect hardware
+      │
+      ▼
+Create vfile_t
+      │
+      ▼
+Assign file operations
+      │
+      ▼
+Set driver metadata
+      │
+      ▼
+MESSAGE_DEVICE_ADD
+```
 
-Arguments: `uint32_t pid`
+Example:
 
-Sets the process `pid` as blocked, and will not run until set unblocked.
+```c
+vfile_t *device =
+    fcreate(api,
+            "/dev/disk/ide0",
+            FS_FILE_SYSTEM);
 
-#### MODULE_API_UNBLOCK_PID
+device->fileops = &ide_fileops;
+device->minimum_rw_size = 512;
+device->id = drive_index;
 
-Arguments: `uint32_t pid`
+api(MODULE_API_DISPATCH_MESSAGE,
+    MESSAGE_DEVICE_ADD,
+    device);
+```
 
-Sets the process `pid` as unblocked, and will resume execution after the current queue has finished executing.
+The driver does not call the partition manager directly.
 
-#### MODULE_API_GET_CPID
+The partition manager receives the device notification and creates additional `vfile_t` objects representing partitions.
 
-Arguments: 
+---
 
-Obtains the ID of the current executing process.
+# Message Handlers
 
-#### MODULE_API_GET_INTERRUPT
+Modules may receive kernel messages.
 
-Arguments: 
+Register a handler:
 
-Asks the interrupt handler whether or not it considers itself to be in an interrupt. Returns 1 if true.
+```c
+api(MODULE_MESSAGE_HANDLER,
+    module.key,
+    message_handler);
+```
 
-Deprecated, but probably won't be removed for now.
+Handler format:
+
+```c
+int32_t handler(uint32_t message, ...);
+```
+
+Supported messages:
+
+| Message | Arguments |
+|---------|-----------|
+| `MESSAGE_DEVICE_ADD` | `vfile_t *` |
+| `MESSAGE_DEVICE_REMOVE` | `vfile_t *` |
+| `MESSAGE_PARTITION_DETECT` | `vfile_t *` |
+| `MESSAGE_PARTITION_REFRESH` | Reserved |
+| `MESSAGE_MOUNT_FS` | `vfile_t *, char *, uint32_t` |
+| `MESSAGE_UNMOUNT_FS` | `vfile_t *` |
+
+Returning a value greater than or equal to zero indicates that the message was handled.
+
+Returning a negative value allows other modules to process it.
+
+---
+
+# File API
+
+Open a virtual file:
+
+```c
+vfile_t *file =
+    (vfile_t *)api(MODULE_API_OPEN,
+                   "/dev/disk/ide0");
+```
+
+Create a virtual file:
+
+```c
+vfile_t *file =
+    (vfile_t *)api(MODULE_API_CREAT,
+                   "/dev/example",
+                   FS_FILE_SYSTEM);
+```
+
+Read:
+
+```c
+api(MODULE_API_READ,
+    file,
+    buffer,
+    offset,
+    count);
+```
+
+Write:
+
+```c
+api(MODULE_API_WRITE,
+    file,
+    buffer,
+    offset,
+    count);
+```
+
+Offsets and sizes are measured in bytes.
+
+---
+
+# Block Devices
+
+Block devices must provide:
+
+```c
+vfile_t->minimum_rw_size
+```
+
+This describes the smallest valid read/write unit.
+
+Example:
+
+```c
+disk->minimum_rw_size = 512;
+```
+
+Consumers must not assume a fixed sector size.
+
+Example:
+
+The partition manager module uses this value when converting partition LBAs into byte offsets.
+
+```c
+byte_offset =
+    start_lba * parent->minimum_rw_size;
+```
+
+---
+
+# Memory API
+
+Allocate kernel memory (size allocated is in 4096-byte pages):
+
+```c
+void *ptr =
+    (void *)api(MODULE_API_MALLOC,
+                pages);
+```
+
+Free memory:
+
+```c
+api(MODULE_API_FREE,
+    ptr);
+```
+
+Allocate 64 KiB-aligned physical memory:
+
+```c
+uint32_t address =
+    api(MODULE_API_PMALLOC64K);
+```
+
+Map physical memory at a virtual address:
+
+```c
+api(MODULE_API_KMALLOC_PADDR,
+    physical_address,
+    size);
+```
+
+---
+
+# Virtual Memory
+
+Map memory:
+
+```c
+api(MODULE_API_MAP,
+    virtual,
+    physical,
+    flags);
+```
+
+Unmap:
+
+```c
+api(MODULE_API_UNMAP,
+    virtual);
+```
+
+Get physical address:
+
+This only returns the start of the physical page.
+
+```c
+api(MODULE_API_PADDR,
+    virtual);
+```
+
+---
+
+# Interrupts
+
+Register an interrupt handler:
+
+```c
+api(MODULE_API_ADDINT,
+    irq,
+    module.key,
+    handler);
+```
+
+Remove an interrupt handler:
+
+```c
+api(MODULE_API_DELINT,
+    irq,
+    module.key);
+```
+
+Currently supported IRQ range:
+
+```text
+0-15
+```
+
+---
+
+# Scheduler API
+
+Block a process:
+
+```c
+api(MODULE_API_BLOCK_PID,
+    pid);
+```
+
+Unblock:
+
+```c
+api(MODULE_API_UNBLOCK_PID,
+    pid);
+```
+
+Get current process:
+
+```c
+uint32_t pid =
+    api(MODULE_API_GET_CPID);
+```
+
+Check interrupt context:
+
+```c
+uint32_t irq =
+    api(MODULE_API_IS_INTERRUPT);
+```
+
+---
+
+# Logging
+
+Print to the kernel log:
+
+```c
+api(MODULE_API_PRINT,
+    MODULE_NAME,
+    "Detected drive %u\n",
+    id);
+```
+
+---
+
+# Filesystem Flags
+
+| Flag | Meaning |
+|------|---------|
+| `FS_FILE_READ_ONLY` | Read-only object |
+| `FS_FILE_HIDDEN` | Hidden object |
+| `FS_FILE_SYSTEM` | System object |
+| `FS_FILE_IS_DIR` | Directory |
+| `FS_FILE_ARCHIVE` | Archive |
+| `FS_FILE_PIPE` | Pipe |
+| `FS_FILE_LINK` | Link |
+| `FS_FILE_MOUNT` | Physical device or mounted filesystem |
+
+---
+
+# Example: Storage Driver
+
+A storage driver detects a disk:
+
+```c
+vfile_t *disk =
+    fcreate(api,
+            "/dev/disk/ide0",
+            FS_FILE_SYSTEM);
+
+disk->fileops = &ide_fileops;
+disk->minimum_rw_size = 512;
+disk->id = drive_id;
+
+api(MODULE_API_DISPATCH_MESSAGE,
+    MESSAGE_DEVICE_ADD,
+    disk);
+```
+
+The partition manager receives:
+
+```c
+MESSAGE_DEVICE_ADD
+```
+
+and creates partition objects:
+
+```text
+/dev/disk/ide0
+/dev/disk/ide0p0
+/dev/disk/ide0p1
+```
+
+Each partition is another `vfile_t` object with its own operations.
+
+Modules interact through these shared kernel objects rather than direct dependencies.
