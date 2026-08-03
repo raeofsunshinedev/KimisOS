@@ -130,8 +130,9 @@ void initrc_read(vfile_t *file){
             // if(ptr[i] )
             
             // printf("TEST: %s, %s, %d\n", mount_src_name, mount_dest, ptr[i]);
-            
             vfile_t *to_mount = fopen(mount_src_name);
+            // printf("%s\n", to_mount->name);
+            
             if(!to_mount){
                 mlog("KERNEL", "Could not locate file: %s. Aborting mount.\n", MLOG_PRINT, mount_src_name);
                 continue;

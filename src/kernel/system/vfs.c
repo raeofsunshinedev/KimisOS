@@ -115,7 +115,7 @@ vfile_t *fopen(char *name){
 }
 
 vfile_t *fclose(vfile_t *file){
-    if(!file || !file->fileops || !file->fileops->close);
+    if(!file || !file->fileops || !file->fileops->close) return 0;
     file->fileops->close(file);
     return 0;
 }

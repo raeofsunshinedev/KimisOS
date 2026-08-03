@@ -128,6 +128,7 @@ uint32_t module_api(uint32_t func, ...){
             for(int i = 0; i < modules->size; i++){
                 module_t* module = ((module_t *)vector_get(i, modules));
                 if(module->key == key){
+                    printf("Registering Handler!\n");
                     module->message_handler = handler;
                     return_value = 0;
                     break;
@@ -160,6 +161,26 @@ uint32_t module_api(uint32_t func, ...){
 
 
 uint32_t va_dispatch_message(uint32_t message, va_list args){
+    // printf("Module Size: %x\n", modules->size);
+    
+    vfile_t *srcfile;
+    char *destname;
+    uint32_t offset;
+    
+    switch(message){
+        case MESSAGE_MOUNT_FS:
+            srcfile = va_arg(args, vfile_t *);
+            destname = va_arg(args, char *);
+            offset = va_arg(args, uint32_t);
+            break;
+        case MESSAGE_UNMOUNT_FS:
+        case MESSAGE_PARTITON_DETECT:
+        case MESSAGE_DEVICE_REMOVE:
+        case MESSAGE_DEVICE_ADD:
+            srcfile = va_arg(args, vfile_t *);
+        break;
+    }
+    
     for(int i = 0; i < modules->size; i++){
         module_t *module = vector_get(i, modules);
         uint32_t key = module->key;
@@ -167,27 +188,19 @@ uint32_t va_dispatch_message(uint32_t message, va_list args){
         if(!handler) continue;
         int32_t result = 0;
         
-        vfile_t *srcfile;
-        char *destname;
-        uint32_t offset;
         
         switch(message){
             case MESSAGE_MOUNT_FS:
-                srcfile = va_arg(args, vfile_t *);
-                destname = va_arg(args, char *);
-                offset = va_arg(args, uint32_t);
-                
                 result = handler(message, srcfile, destname, offset);
                 break;
             case MESSAGE_UNMOUNT_FS:
             case MESSAGE_PARTITON_DETECT:
             case MESSAGE_DEVICE_REMOVE:
             case MESSAGE_DEVICE_ADD:
-                srcfile = va_arg(args, vfile_t *);
                 result = handler(message, srcfile);
                 break;
         }
-        if((int32_t) message >= 0 && result){
+        if((int32_t) message >= 0 && result >= 0){
             return result;
         }
     }

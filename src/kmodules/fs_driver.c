@@ -23,43 +23,54 @@ uint8_t fat32_check_valid(fat32_bpb_t *bpb){
 
 
 uint32_t fat32_mount(vfile_t *dev_file, char *destination, uint32_t offset){
-    // char *bpb_buffer = malloc(api, 1);
-    // fread(api, dev_file, bpb_buffer, offset, 4096);
-    // fat32_bpb_t *bpb = bpb_buffer;
     
-    // api(MODULE_API_PRINT, MODULE_NAME, "Sizeof struct: %d, sig: %x, boot sig: %x\n", sizeof(fat32_bpb_t), bpb->signature, bpb->bootable_sig);
-    // if(!fat32_check_valid(bpb)){
-    //     api(MODULE_API_PRINT, MODULE_NAME, "Error: No valid BPB\n");
-    //     return 0;
-    // }
-    // puts(api, MODULE_NAME, "Valid BPB found!\n");
+    if(!dev_file){
+        return -1;
+    }
+    
+    char *bpb_buffer = malloc(api, 1);
+    fread(api, dev_file, bpb_buffer, offset, 512);
+    
+    fat32_bpb_t *bpb = bpb_buffer;
+    
+    api(MODULE_API_PRINT, MODULE_NAME, "Sizeof struct: %d, sig: %x, boot sig: %x\n", sizeof(fat32_bpb_t), bpb->signature, bpb->bootable_sig);
+    if(!fat32_check_valid(bpb)){
+        api(MODULE_API_PRINT, MODULE_NAME, "Error: No valid BPB\n");
+        free(api, bpb_buffer);
+        return 0;
+    }
+    puts(api, MODULE_NAME, "Valid BPB found!\n");
     
     // fat32_make_mount();
     
-    return 1;
+    return 0;
 }
-
+    
 int32_t message_handler(uint32_t message, ...){
     puts(api, MODULE_NAME, "Called message handler!\n");
     
     va_list args;
     va_start(args, message);
     
-    if(message == MESSAGE_MOUNT_FS){
-        vfile_t *device = va_arg(args, vfile_t *);
-        char *dest = va_arg(args, char *);
-        uint32_t offset = va_arg(args, uint32_t);
-        return fat32_mount(device, dest, offset);
+        if(message == MESSAGE_MOUNT_FS){
+            vfile_t *device = va_arg(args, vfile_t *);
+            char *dest = va_arg(args, char *);
+            uint32_t offset = va_arg(args, uint32_t);
+            return fat32_mount(device, dest, offset);
+        // return 0;
     }
     return -1;
 }
 
 void init(KOS_MAPI_FP module_api, uint32_t api_version){
     api = module_api;
+    if(api_version != 0){
+        api(MODULE_API_PRINT, MODULE_NAME, "Unsupported API version! Required: 0.0.0 | Reported: %d.%d.%d", api_version >> 16, (api_version >> 8) & 0xff, api_version & 0xff);
+    }
     api(MODULE_API_PRINT, MODULE_NAME, "KIFSM Filesystem Driver Module v0.1.0\nSupported Filesystems:\n");
     int32_t status = api(MODULE_API_REGISTER, &module_data);
     
-    // api(MODULE_MESSAGE_HANDLER, module_data.key, message_handler);
+    api(MODULE_MESSAGE_HANDLER, module_data.key, message_handler);
     // api(MODULE_API_PRINT, MODULE_NAME, "Key: %x\n", module_data.key);
     
     return;

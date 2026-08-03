@@ -61,8 +61,9 @@ int detect_partitions(vfile_t *file, uint32_t index){
     uint32_t current_partition;
     fread(api, file, mbr, 0, 512);
     
-    if(mbr->sig == 0xaa55){
-        puts(api, MODULE_NAME, "Valid MBR sig!\n");
+    if(mbr->sig != 0xaa55){
+        free(api, mbr);
+        return -1;
     }
     uint8_t use_gpt = 0;
     uint8_t mbr_is_valid = 1;
@@ -80,7 +81,6 @@ int detect_partitions(vfile_t *file, uint32_t index){
         if(mbr->partition_table[i].sector_count != 0 && mbr->partition_table[i].lba_address != 0){
             found_valid_partition = 1;
         }
-        api(MODULE_API_PRINT, MODULE_NAME, "hello? %x %x\n", mbr->partition_table[i].sector_count, mbr->partition_table[i].lba_address);
         for(uint32_t j = 0; j < 4; j++){
             uint32_t a_end = mbr->partition_table[i].lba_address + mbr->partition_table[i].sector_count;
             uint32_t b_end = mbr->partition_table[j].lba_address + mbr->partition_table[j].sector_count;
@@ -96,12 +96,13 @@ int detect_partitions(vfile_t *file, uint32_t index){
         }
     }
     if(!mbr_is_valid || !found_valid_partition){
-        api(MODULE_API_PRINT, MODULE_NAME, "hello? %x %x\n", mbr_is_valid, found_valid_partition);
+        free(api, mbr);
         return -1;
     }
     if(use_gpt){
         puts(api, MODULE_NAME, "GPT Partitioning scheme not supported!\n");
         //Not currently supported. Sorry UEFI fans
+        free(api, mbr);
         return -2;
     }
     uint32_t partition_count = 0;
@@ -137,6 +138,8 @@ int detect_partitions(vfile_t *file, uint32_t index){
             partition_count++;
         }
     }
+    free(api, mbr);
+    return 0;
 }
 
 void device_add(vfile_t *file){
@@ -179,7 +182,6 @@ int32_t message_handler(uint32_t message, ...){
     
     va_list args;
     va_start(args, message);
-    
     if(message == MESSAGE_DEVICE_ADD || message == MESSAGE_DEVICE_REMOVE){
         vfile_t *file = va_arg(args, vfile_t *);
         // api(MODULE_API_PRINT, MODULE_NAME, "Called message handler! Message: %x\n", file);
