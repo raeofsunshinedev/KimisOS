@@ -48,7 +48,7 @@ vfile_t *resolve_path(char *pathname, vfile_t *start, uint32_t get_last_child){
     }
     char *path = kmalloc(1);
     strcpy(pathname, path);
-    
+    if(pathname[0] == '/') path++;
     char **path_tokens = kmalloc(1);
     uint32_t pathname_entries = 0;
     char *pathtok = path;
@@ -70,9 +70,10 @@ vfile_t *resolve_path(char *pathname, vfile_t *start, uint32_t get_last_child){
     // vfile_t **buffer = (vfile_t **)start->private;
     vfile_t *entry = start;
     char *current_path = pathname;
-    for(int i = 0; i < pathname_entries - !get_last_child; i++){
+    for(int i = 0; i < pathname_entries; i++){
         entry = search_dir(path_tokens[i], entry);
-        current_path += strlen(path_tokens[i]) + 1;
+        current_path += strlen(path_tokens[i]);
+        current_path += (current_path[0] == '/');
         if(!entry){
             break;
         }

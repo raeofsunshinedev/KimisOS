@@ -70,3 +70,39 @@ typedef struct fat_mount_s{
     uint32_t fat_cache_size;
     uint32_t *fat_cache;
 } __attribute__((aligned(64))) fat_mount_t;
+
+typedef struct fat_open_file_s{
+    char filename[100];
+    
+    uint32_t refcount;
+    
+    uint32_t mount_index;
+    uint32_t first_cluster;
+    uint32_t size_clusters;
+    
+    uint32_t file_flags;
+    
+    //first cluster of dirent;
+    uint32_t dirent_cluster;
+    //index as array of fat32 dirents
+    uint32_t dirent_offset;
+}fat_open_file_t;
+
+typedef struct fat_dirent_s{
+    char name[11];
+    uint8_t flags;
+    uint8_t reserved;
+    uint8_t creation_hundreths;
+    uint16_t creation_time;
+    uint16_t creation_date;
+    uint16_t last_accessed_date;
+    uint16_t cluster_high;
+    uint16_t last_modification_time;
+    uint16_t last_modification_date;
+    uint16_t cluster_low;
+    uint32_t size;
+}__attribute__((packed)) fat_dirent_t;
+
+typedef struct fat_lfn_s{
+    
+}fat_lfn_t;

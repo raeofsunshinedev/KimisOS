@@ -79,11 +79,12 @@ uint32_t module_api(uint32_t func, ...){
         case MODULE_API_CREAT:
             name = va_arg(vars, char *);
             FS_FILE_FLAGS ftype = va_arg(vars, FS_FILE_FLAGS);
-            return_value = (uint32_t)fcreate(name, ftype);
+            return_value = (uint32_t)fcreate(name, ftype); 
             break;
         case MODULE_API_DELET:
             file = va_arg(vars, vfile_t *);
-            return_value = fdelete(file);
+            name = va_arg(vars, char *);
+            return_value = fdelete(file, name);
             break;
         case MODULE_API_OPEN:
             name = va_arg(vars, char *);

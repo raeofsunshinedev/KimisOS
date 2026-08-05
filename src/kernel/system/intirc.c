@@ -26,7 +26,7 @@ int is_num(char c){
 void initrc_set_config(char *confstr){
     printf("Size: %x", sizeof config_map);
 }
-
+//TODO: Properly parse it instead of... Whatever this is.
 void initrc_read(vfile_t *file){
     mlog("KERNEL", "Reading initrc:\n", MLOG_PRINT);
     if(!file || !file->private){
@@ -56,7 +56,7 @@ void initrc_read(vfile_t *file){
             //this is purely for testing purposes.
             printf("[ INITRC ]");
             i++;
-            while(ptr[i] != '\n' && ptr[i]){
+            while(ptr[i] != '\n' && ptr[i] && ptr[i] != '#'){
                 if(ptr[i] != '\"'){
                     printf("%c", ptr[i]);
                 }

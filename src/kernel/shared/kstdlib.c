@@ -15,7 +15,7 @@ void vmlog(char *module, char *str, uint32_t type, va_list vars){
     if(!type || type > 4){
         return;
     }
-    printf("[ %s %s ]", module, log_info_types[type]);
+    printf("[ %s %s ] ", module, log_info_types[type]);
     vprintf(str, vars);
 }
 
@@ -25,7 +25,7 @@ void mlog(char *module, char *str, uint32_t type, ...){
     if(!type || type > 4){
         return;
     }
-    printf("[ %s %s ]", module, log_info_types[type]);
+    printf("[ %s %s ] ", module, log_info_types[type]);
     vprintf(str, vars);
 }
 

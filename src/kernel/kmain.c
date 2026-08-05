@@ -39,6 +39,8 @@ void sysinit(){
     const kernel_config_t config = get_config_const();
     heap_init(config.kernel_heap_size);
     
+    vfile_t *home = fopen("/home/hellofat.txt");
+    
     printf("Bleh\n");
     for(;;);
 }

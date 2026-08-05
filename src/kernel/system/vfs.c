@@ -59,7 +59,7 @@ vfile_t *vfcreate(vfile_t *parent_dir, char *relpath, FS_FILE_FLAGS flags){
             return 0;
         }
         new_file = vfcreate(new_parent, name+name_index+1, flags);
-        // fclose(new_parent);
+        fclose(new_parent);
     }
     kfree(name);
     return new_file;

@@ -50,7 +50,7 @@ void vfs_init();
 
 // vfile_t *rfopen(char *name, vfile_t dir);
 vfile_t *fcreate(char *path, FS_FILE_FLAGS flags);
-int fdelete(vfile_t* file_entry);
+int fdelete(vfile_t *parent, char *child);
 int fwrite(vfile_t *file_entry, void *byte_array, uint32_t offset, uint32_t count);
 int fread(vfile_t *file_entry, void *byte_array, uint32_t offset, uint32_t count);
 // int readdir(vfile_t* file, vfile_t *buffer, uint32_t offset, uint32_t count);
