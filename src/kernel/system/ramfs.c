@@ -176,7 +176,7 @@ int ramfs_translate_dir(vfile_t *file, void *buffer, uint32_t offset, uint32_t c
     return to_copy * sizeof(vfile_t);
 }
 
-int ramfs_delete(vfile_t *file){
+int ramfs_delete(vfile_t *parent, char *child){
     return 0;
 }
 int ramfs_write(vfile_t *file, char *buffer, uint32_t offset, uint32_t count){

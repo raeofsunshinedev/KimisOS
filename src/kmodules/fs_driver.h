@@ -34,3 +34,39 @@ typedef struct fat32_bpb{
     char boot_code[420];
     uint16_t bootable_sig;
 }__attribute__((packed)) fat32_bpb_t;
+
+#define FAT32_FSINFO_LEAD_SIG 0x41615252
+#define FAT32_FSINFO_SIG2 0x61417272
+#define FAT32_FSINFO_TRAIL_SIG 0xAA550000
+typedef struct fsinfo_s{
+    uint32_t lead_sig;
+    uint8_t reserved[480];
+    uint32_t sig2;
+    uint32_t last_free_cluster_count;
+    uint32_t first_free_cluster;
+    uint8_t reserved_2[12];
+    uint32_t trail_sig;
+}fsinfo_t;
+
+typedef struct fat_mount_s{
+    fat32_bpb_t *bpb;
+    vfile_t *mount_src;
+    
+    struct fat_mount_flags{
+        uint8_t cache_dirty:1;
+        uint8_t read_only:1;
+        uint8_t fs_info_dirty:1;
+    } flags;
+    
+    spinlock_t *spinlock;
+    
+    uint32_t last_free_cluster_count;
+    uint32_t fat_search_start;
+    uint32_t max_clusters;
+    uint32_t fat_start_sector;
+    uint32_t data_start_sector;
+    
+    uint32_t fat_cache_start;
+    uint32_t fat_cache_size;
+    uint32_t *fat_cache;
+} __attribute__((aligned(64))) fat_mount_t;

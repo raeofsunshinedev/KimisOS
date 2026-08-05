@@ -66,12 +66,12 @@ vfile_t *vfcreate(vfile_t *parent_dir, char *relpath, FS_FILE_FLAGS flags){
     // return 0;
 }
 
-int fdelete(vfile_t *file_entry){
+int fdelete(vfile_t *parent, char *child){
     spinlock_acquire(&vfs_lock);
-    if(!file_entry || !file_entry->fileops || !file_entry->fileops->delete){
+    if(!parent || !parent->fileops || !parent->fileops->delete || !child){
         return 0;
     }
-    int return_value = file_entry->fileops->delete(file_entry);
+    int return_value = parent->fileops->delete(parent, child);
     spinlock_release(&vfs_lock);
     return return_value;
 }

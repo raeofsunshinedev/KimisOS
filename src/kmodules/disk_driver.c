@@ -329,7 +329,7 @@ int ata_read(vfile_t *file, uint8_t *ptr, uint32_t offset, uint32_t count) {
     ata_acquire_primary_lock();
     
     PRD_T *prdt = drive.PRDT;
-    api(MODULE_API_PRINT, MODULE_NAME, "%x, %x, %x, %x\n", io_base, ctrl_base, bm_base, api(MODULE_API_PADDR, prdt));
+    // api(MODULE_API_PRINT, MODULE_NAME, "%x, %x, %x, %x\n", io_base, ctrl_base, bm_base, api(MODULE_API_PADDR, prdt));
     uint32_t pages = (count + 4095) / 4096;
     
     // api(MODULE_API_PRINT, MODULE_NAME, "pid: %x, index: %x\n", transferring_pid, transferring_disk_index);
@@ -402,7 +402,7 @@ int ata_read(vfile_t *file, uint8_t *ptr, uint32_t offset, uint32_t count) {
     
     uint8_t status = inb(ctrl_base);
     uint8_t bm_status = inb(bm_base + 2);
-    api(MODULE_API_PRINT, MODULE_NAME, "Status: (ATA)%x, (Busmaster)%x\n", status, bm_status);
+    // api(MODULE_API_PRINT, MODULE_NAME, "Status: (ATA)%x, (Busmaster)%x\n", status, bm_status);
     // if(ATA_ABRT(status)){
     //     puts(api, MODULE_NAME, "Command aborted\n");
     //     return -1;

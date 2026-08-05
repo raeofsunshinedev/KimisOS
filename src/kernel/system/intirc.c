@@ -137,7 +137,7 @@ void initrc_read(vfile_t *file){
                 mlog("KERNEL", "Could not locate file: %s. Aborting mount.\n", MLOG_PRINT, mount_src_name);
                 continue;
             }
-            if(!dispatch_message(MESSAGE_MOUNT_FS, to_mount, mount_dest, offset)){
+            if(dispatch_message(MESSAGE_MOUNT_FS, to_mount, mount_dest, offset) < 0){
                 mlog("INITRC", "Error: Could not mount device %s at %s\n", MLOG_PRINT, mount_src_name, mount_dest);
                 // asm("int $13");
             }

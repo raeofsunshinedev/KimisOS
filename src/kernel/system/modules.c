@@ -204,7 +204,7 @@ uint32_t va_dispatch_message(uint32_t message, va_list args){
             return result;
         }
     }
-    return 0;
+    return -1;
 }
 
 uint32_t dispatch_message(uint32_t message, ...){
