@@ -10,6 +10,7 @@ KOS_MAPI_FP api;
 
 void init(KOS_MAPI_FP module_api, uint32_t api_version);
 
+const uint32_t FAT_CACHE_SIZE_ENTRIES = 16384;
 const uint32_t MAX_MOUNT_COUNT = 64;
 fat_mount_t *fat32_mounts;
 
@@ -54,8 +55,64 @@ inline uint32_t translate_vfile_flags_to_fat32(uint32_t vfile_flags){
     return vfile_flags & 0x3f;
 }
 
-uint32_t fat32_get_next_cluster(uint32_t index, uint32_t mount_index){
+void recache_fat32_table(uint32_t index, uint32_t size, uint32_t mount_index){
+    uint8_t new_allocation  = 0;
+    if(!fat32_mounts[mount_index].fat_cache){
+        new_allocation = 1;
+        fat32_mounts[mount_index].fat_cache = malloc(api, (FAT_CACHE_SIZE_ENTRIES * sizeof(uint32_t) + PAGE_SIZE_BYTES - 1)/PAGE_SIZE_BYTES);
+    }
+    uint32_t min_fat_index = fat32_mounts[mount_index].fat_cache_start;
+    uint32_t max_fat_index = min_fat_index + fat32_mounts[mount_index].fat_cache_size;
     
+    uint32_t fat_start = fat32_mounts[mount_index].fat_start_sector * fat32_mounts[mount_index].mount_src->minimum_rw_size;
+    api(MODULE_API_PRINT, MODULE_NAME, "FAT start byte: %x at file: %s\n", fat_start, fat32_mounts[mount_index].mount_src->name);
+    
+    if(!new_allocation){
+        fwrite(api, fat32_mounts[mount_index].mount_src, fat32_mounts[mount_index].fat_cache, fat_start + min_fat_index * sizeof(uint32_t), FAT_CACHE_SIZE_ENTRIES * sizeof(uint32_t));
+    }
+    min_fat_index = index & 0xffffc000;
+    fat32_mounts[mount_index].fat_cache_start = min_fat_index;
+    fat32_mounts[mount_index].fat_cache_size = FAT_CACHE_SIZE_ENTRIES;
+    // api(MODULE_API_PRINT, MODULE_NAME, "Old index: %x | New index: %x\n", fat32_mounts[mount_index].fat_cache_start, min_fat_index);
+    api(MODULE_API_PRINT, MODULE_NAME, "Read offset: %x\n", fat_start + min_fat_index * sizeof(uint32_t));
+    fread(api, fat32_mounts[mount_index].mount_src, fat32_mounts[mount_index].fat_cache, fat_start + min_fat_index * sizeof(uint32_t), FAT_CACHE_SIZE_ENTRIES * sizeof(uint32_t));
+    
+    puts(api, MODULE_NAME, "Wuh?\n");
+    
+    for(int i = 0; i < 8; i++){
+        api(MODULE_API_PRINT, MODULE_NAME, "%x\n", fat32_mounts[mount_index].fat_cache[i]);
+    }
+}
+//returns zero if OOB, returns 1 if in bounds
+uint8_t fat32_check_bounds(uint32_t index, uint32_t mount_index){
+    if(!fat32_mounts[mount_index].fat_cache_size){
+        return 0;
+    }
+    uint32_t min_fat_index = fat32_mounts[mount_index].fat_cache_start;
+    uint32_t max_fat_index = min_fat_index + fat32_mounts[mount_index].fat_cache_size;
+    if(index < min_fat_index || index > max_fat_index){
+        return 0;
+    }
+    
+    return 1;
+}
+
+void fat32_set_next_cluster(uint32_t index, uint32_t value, uint32_t mount_index){
+    uint32_t min_fat_index = fat32_mounts[mount_index].fat_cache_start;
+    uint32_t max_fat_index = min_fat_index + fat32_mounts[mount_index].fat_cache_size;
+    if(!fat32_check_bounds(index, mount_index)){
+        recache_fat32_table(index, FAT_CACHE_SIZE_ENTRIES, mount_index);
+    }
+    fat32_mounts[mount_index].fat_cache[index - min_fat_index] = value;
+}
+
+uint32_t fat32_get_next_cluster(uint32_t index, uint32_t mount_index){
+    uint32_t min_fat_index = fat32_mounts[mount_index].fat_cache_start;
+    uint32_t max_fat_index = min_fat_index + fat32_mounts[mount_index].fat_cache_size;
+    if(!fat32_check_bounds(index, mount_index)){
+        recache_fat32_table(index, FAT_CACHE_SIZE_ENTRIES, mount_index);
+    }
+    return fat32_mounts[mount_index].fat_cache[index - min_fat_index];
 }
 
 uint32_t fat32_read_dirent(fat_dirent_t dirent, char *buffer, uint32_t mount_index){
@@ -63,7 +120,7 @@ uint32_t fat32_read_dirent(fat_dirent_t dirent, char *buffer, uint32_t mount_ind
 }
 
 fat_open_file_t *fat32_search_dir(char *path, fat_dirent_t *dir_data){
-    
+    return 0;
 }
 
 fat_open_file_t *resolve_path(char *path, vfile_t *parent){
@@ -106,25 +163,26 @@ fat_open_file_t *resolve_path(char *path, vfile_t *parent){
     if (pathname_entries < MAX_TOKENS) {
         path_tokens[pathname_entries++] = pathtok;
     }
-    fat_dirent_t parent_dir = {0};
+    fat_dirent_t *parent_dir = 0;
     for(uint32_t i = 0; i < pathname_entries; i++){
         api(MODULE_API_PRINT, MODULE_NAME, "Subpath: %s\n", path_tokens[i]);
         
-        uint32_t size_to_alloc = (parent_dir.size + PAGE_SIZE_BYTES - 1) / PAGE_SIZE_BYTES;
+        uint32_t size_to_alloc = parent_dir ? (parent_dir->size + PAGE_SIZE_BYTES - 1) / PAGE_SIZE_BYTES : 8;
         size_to_alloc += (!size_to_alloc * 8);
         
         api(MODULE_API_PRINT, MODULE_NAME, "Size to alloc: %d\n", size_to_alloc);
         fat_dirent_t *dir_data = malloc(api, size_to_alloc);
+        recache_fat32_table(0, FAT_CACHE_SIZE_ENTRIES, parent->id);
         
         
-        // fat32_search_dir(path_tokens[i], dir_data);
+        
+        parent_dir = fat32_search_dir(path_tokens[i], dir_data);
     }
     //check if a reference is open
-    
     //return reference
     free(api, pathname);
     free(api, path_tokens);
-    return 0;
+    return parent_dir;
 }
 
 vfile_t *fat32_open(char *path, vfile_t *parent){
@@ -199,6 +257,9 @@ uint32_t fat32_mount(vfile_t *dev_file, char *destination, uint32_t offset){
     mount->max_clusters = bpb->sector_count/bpb->sectors_per_cluster;
     mount->data_start_sector = bpb->reserved_sectors + (bpb->fat_count * bpb->sectors_per_fat);
     mount->fat_start_sector = bpb->reserved_sectors;
+    mount->fat_cache = 0;
+    mount->fat_cache_size = 0;
+    mount->fat_cache_start = 0;
     
     uint32_t filesize = (bpb->sector_count - (bpb->reserved_sectors + bpb->fat_count * bpb->sectors_per_fat)) * bpb->bytes_per_sector;
     

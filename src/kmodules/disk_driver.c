@@ -416,32 +416,46 @@ cpu_registers_t *int_handler(cpu_registers_t * regs){
     if(transferring_disk_index == -1){
         return regs;
     }
+    
     drive_t drive = drives[transferring_disk_index];
-    uint16_t dmabar = drive.BARs[4] & (uint32_t)(~3);
-    uint32_t status = inb(dmabar + 2);
-    outb(dmabar + 2, 0x4);
-    recieved_ints++;
-    // api(MODULE_API_PRINT, MODULE_NAME, "Interrupt called, %x\n", status);
-    if(status & 2){
+    uint16_t dmabar = drive.BARs[4] & ~3;
+    uint16_t io_base = drive.BARs[0] & 0xfffe;
+    
+    uint8_t status = inb(dmabar + 2);
+    
+    api(MODULE_API_PRINT, MODULE_NAME, "Interrupt called, %x\n", status);
+    
+    if(!(status & 0x4)){
+        return regs;
+    }
+    
+    //stop dma
+    outb(dmabar, 0x0);
+    
+    uint8_t ata_status = inb(io_base + ATA_STATUS);
+    
+    outb(dmabar + 2, status & 0x6);
+    
+    if(status & 0x2){
+        api(MODULE_API_PRINT, MODULE_NAME, "DMA Error, BM: %x ATA: %x\n", status, ata_status);
         
-        api(MODULE_API_PRINT, MODULE_NAME, "Error\n");
+        transferring_disk_index = -1;
+        api(MODULE_API_UNBLOCK_PID, transferring_pid);
+        transferring_pid = 0;
+        primary_ata_locked = 0;
+        
         return regs;
     }
-    outb(dmabar, 0x09);
-    if(status & 1){
+    
+    //dma is still active
+    if(status & 0x1){
         return regs;
     }
-    // api(MODULE_API_PRINT, MODULE_NAME, "test");
-    if(recieved_ints < expected_ints){
-        return regs;
-    }
-    outb(drives[transferring_disk_index].BARs[4] & ~3, 0x00);
+    
     transferring_disk_index = -1;
     api(MODULE_API_UNBLOCK_PID, transferring_pid);
     transferring_pid = 0;
     primary_ata_locked = 0;
-    
-    
     
     return regs;
 }

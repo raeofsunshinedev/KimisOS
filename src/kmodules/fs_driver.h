@@ -67,7 +67,7 @@ typedef struct fat_mount_s{
     uint32_t data_start_sector;
     
     uint32_t fat_cache_start;
-    uint32_t fat_cache_size;
+    uint32_t fat_cache_size; //in entries
     uint32_t *fat_cache;
 } __attribute__((aligned(64))) fat_mount_t;
 
@@ -106,3 +106,6 @@ typedef struct fat_dirent_s{
 typedef struct fat_lfn_s{
     
 }fat_lfn_t;
+
+int fat32_read(vfile_t *file, void *buffer, uint32_t offset, uint32_t count);
+int fat32_write(vfile_t *file, void *buffer, uint32_t offset, uint32_t count);
