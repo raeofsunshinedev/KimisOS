@@ -39,6 +39,21 @@ uint32_t fat32_cache_open(fat_open_file_t *file){
         return i;
     }
     //failed to add to list, realloc and try again.
+    uint32_t used_pages = (open_file_cache_size + PAGE_SIZE_BYTES - 1)/PAGE_SIZE_BYTES;
+    uint32_t new_pages = used_pages + 4;
+    // api(MODULE_API_PRINT, MODULE_NAME, "Failed to add to list: Need pages: %d | Used pages: %d\n", new_pages, used_pages);
+    fat_open_file_t **new_cache = malloc(api, new_pages);
+    for(uint32_t i = 0; i < new_pages * PAGE_SIZE_BYTES / sizeof(uint32_t); i++){
+        new_cache = 0;
+    }
+    memcpy(open_file_cache, new_cache, open_file_cache_size * sizeof(fat_open_file_t **));
+    open_file_cache_size = (new_pages * PAGE_SIZE_BYTES)/sizeof(fat_open_file_t **);
+    
+    // api(MODULE_API_PRINT, MODULE_NAME, "New cache size: %x\n", open_file_cache_size);
+    free(api, open_file_cache);
+    open_file_cache = new_cache;
+    
+    return fat32_cache_open(file);
 }
 
 uint8_t fat32_check_valid(fat32_bpb_t *bpb){
@@ -111,19 +126,19 @@ uint32_t fat32_get_next_cluster(uint32_t index, uint32_t mount_index){
 
 uint32_t fat32_read_dirent(fat_dirent_t *dirent, char *buffer, uint32_t mount_index){
     uint32_t cluster = fat32_mounts[mount_index].bpb->root_dir_cluster;
-    if(dirent){
+    if(dirent && dirent->name[0] != 0){
         cluster = dirent->cluster_high << 16 | dirent->cluster_low;
     }
     fat_mount_t *mount = &(fat32_mounts[mount_index]);
-    api(MODULE_API_PRINT, MODULE_NAME, "Data Offset: %x\n", mount->data_start_sector * mount->bpb->bytes_per_sector);
+    // api(MODULE_API_PRINT, MODULE_NAME, "Data Offset: %x\n", mount->data_start_sector * mount->bpb->bytes_per_sector);
     uint32_t cluster_number = 0;
     while(cluster < 0x0FFFFFF8){
-        api(MODULE_API_PRINT, MODULE_NAME, "Cluster: %x\n", cluster);
+        // api(MODULE_API_PRINT, MODULE_NAME, "Cluster: %x\n", cluster);
         
         uint32_t cluster_offset_start = (mount->data_start_sector + ((cluster - 2) * mount->bpb->sectors_per_cluster)) * mount->bpb->bytes_per_sector;
         
-        api(MODULE_API_PRINT, MODULE_NAME, "Data Offset: %x\n", cluster_offset_start);
-        api(MODULE_API_PRINT, MODULE_NAME, "Byte Count: %x\n", mount->bpb->bytes_per_sector * mount->bpb->sectors_per_cluster);
+        // api(MODULE_API_PRINT, MODULE_NAME, "Data Offset: %x\n", cluster_offset_start);
+        // api(MODULE_API_PRINT, MODULE_NAME, "Byte Count: %x\n", mount->bpb->bytes_per_sector * mount->bpb->sectors_per_cluster);
         
         fread(api, mount->mount_src, buffer + cluster_number * mount->bpb->sectors_per_cluster * mount->bpb->bytes_per_sector, cluster_offset_start, mount->bpb->bytes_per_sector * mount->bpb->sectors_per_cluster);
         
@@ -179,7 +194,7 @@ void fat32_copy_short_filename(uint32_t index, char *filename, fat_dirent_t *dir
     }
 }
 
-fat_open_file_t *fat32_search_dir(char *path, fat_dirent_t *dir_data){
+fat_dirent_t *fat32_search_dir(char *path, fat_dirent_t *dir_data){
     uint32_t i = 0;
     const int DIR_ENT_MAX = 65536;
     while(dir_data[i].name[0] && i < DIR_ENT_MAX){
@@ -190,7 +205,11 @@ fat_open_file_t *fat32_search_dir(char *path, fat_dirent_t *dir_data){
         else{
             fat32_copy_short_filename(i, filename, dir_data);
         }
-        api(MODULE_API_PRINT, MODULE_NAME, "Filename: %s\n", filename);
+        // api(MODULE_API_PRINT, MODULE_NAME, "filename: %s\n", filename);
+        if(!strcmp(path, filename)){
+            api(MODULE_API_PRINT, MODULE_NAME, "Found file: %s | Short: %s\n", filename, dir_data[i].name);
+            return &dir_data[i];
+        }
         i++;
     }
     return 0;
@@ -203,7 +222,7 @@ fat_open_file_t *resolve_path(char *path, vfile_t *parent){
         return 0;
     }
     if(!path || path[0] == 0){
-        api(MODULE_API_PRINT, MODULE_NAME, "Parent name: %s\n", parent->name);
+        // api(MODULE_API_PRINT, MODULE_NAME, "Parent name: %s\n", parent->name);
         return parent;
     }
     uint32_t path_index = 0;
@@ -236,25 +255,51 @@ fat_open_file_t *resolve_path(char *path, vfile_t *parent){
     if (pathname_entries < MAX_TOKENS) {
         path_tokens[pathname_entries++] = pathtok;
     }
-    fat_dirent_t *parent_dir = 0;
+    fat_dirent_t parent_dir = {0};
     for(uint32_t i = 0; i < pathname_entries; i++){
-        api(MODULE_API_PRINT, MODULE_NAME, "Subpath: %s\n", path_tokens[i]);
+        // api(MODULE_API_PRINT, MODULE_NAME, "Subpath: %s\n", path_tokens[i]);
         
-        uint32_t size_to_alloc = parent_dir ? (parent_dir->size + PAGE_SIZE_BYTES - 1) / PAGE_SIZE_BYTES : 8;
+        uint32_t size_to_alloc = parent_dir.name[0] ? (parent_dir.size + PAGE_SIZE_BYTES - 1) / PAGE_SIZE_BYTES : 8;
         size_to_alloc += (!size_to_alloc * 8);
         
-        api(MODULE_API_PRINT, MODULE_NAME, "Size to alloc: %d\n", size_to_alloc);
+        // api(MODULE_API_PRINT, MODULE_NAME, "Size to alloc: %d\n", size_to_alloc);
         fat_dirent_t *dir_data = malloc(api, size_to_alloc);
         
-        fat32_read_dirent(parent_dir, dir_data, parent->id);
+        fat32_read_dirent(&parent_dir, dir_data, parent->id);
         
-        parent_dir = fat32_search_dir(path_tokens[i], dir_data);
+        fat_dirent_t *result = fat32_search_dir(path_tokens[i], dir_data);
+        
+        
+        if(!result){
+            free(api, dir_data);
+            break;
+        }
+        
+        parent_dir = *result;
+        free(api, dir_data);
     }
     //check if a reference is open
     //return reference
     free(api, pathname);
     free(api, path_tokens);
-    return parent_dir;
+    puts(api, MODULE_NAME, "Returning!\n");
+    fat_open_file_t *returnable = malloc(api, 1);
+    if(!returnable){
+        return 0;
+    }
+    uint32_t path_length = strlen(path);
+    uint32_t copy_count = path_length >= 100 ? 100 : path_length;
+    memcpy(path, returnable->filename, copy_count);
+    returnable->first_cluster = (parent_dir.cluster_high << 16) | parent_dir.cluster_low;
+    returnable->file_flags = parent_dir.flags;
+    returnable->mount_index = parent->id;
+    
+    fat_mount_t const* mount = &fat32_mounts[parent->id];
+    uint32_t cluster_size_bytes = mount->bpb->sectors_per_cluster * mount->bpb->bytes_per_sector;
+    returnable->size_clusters = (parent_dir.size + cluster_size_bytes - 1)/cluster_size_bytes;
+    
+    //construct fat_open_file_t *and retur
+    return returnable;
 }
 
 vfile_t *fat32_open(char *path, vfile_t *parent){

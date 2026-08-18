@@ -40,6 +40,7 @@ void sysinit(){
     heap_init(config.kernel_heap_size);
     
     vfile_t *home = fopen("/home/hellofat.txt");
+    home = fopen("/home/longfilenametest.txt");
     
     printf("Bleh\n");
     for(;;);
