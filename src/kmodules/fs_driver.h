@@ -1,6 +1,14 @@
 #pragma once
 #include <stdint.h>
 
+#define FAT32_LONG_FILE_NAME 0xF
+#define FAT32_READ_ONLY 0x1
+#define FAT32_HIDDEN 0x2
+#define FAT32_SYSTEM 0x4
+#define FAT32_VOLUME_ID 0x8
+#define FAT32_DIRECTORY 0x10
+#define FAT32_ARCHIVE 0x20
+
 typedef struct fat32_bpb{
     //fat12/fat16 bpb
     char nop[3];
@@ -104,8 +112,15 @@ typedef struct fat_dirent_s{
 }__attribute__((packed)) fat_dirent_t;
 
 typedef struct fat_lfn_s{
-    
-}fat_lfn_t;
+    uint8_t entry_no;
+    uint16_t name0[5];
+    uint8_t attribute;
+    uint8_t zero;
+    uint8_t checksum;
+    uint16_t name1[6];
+    uint16_t zero1;
+    uint16_t name2[2];
+}__attribute__((packed)) fat_lfn_t;
 
 int fat32_read(vfile_t *file, void *buffer, uint32_t offset, uint32_t count);
 int fat32_write(vfile_t *file, void *buffer, uint32_t offset, uint32_t count);

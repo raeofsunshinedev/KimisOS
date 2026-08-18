@@ -72,7 +72,7 @@ uint32_t module_api(uint32_t func, ...){
             case MODULE_API_WRITE:
             file = va_arg(vars, vfile_t *);
             buffer = va_arg(vars, char *);
-            offset = va_arg(vars, uint32_t), count = va_arg(vars, uint32_t);
+            offset = va_arg(vars, uint32_t);
             count = va_arg(vars, uint32_t);
             return_value = fwrite(file, buffer, offset, count);
             break;

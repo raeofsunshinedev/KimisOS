@@ -14,13 +14,15 @@ all: bootloader tools kernel
 # 	./diskwrite idm.elf ifsm.elf kernel.elf initrc.conf -o image.bin
 	./diskwrite initrd.rd kernel.elf hellofat.txt -o image.bin
 	sudo mount image.bin mount
+	sudo cp longfilenametest.txt mount/longfilenametest.txt
+	sudo umount mount
 # 	sudo mkdir mount/mod # for kernel modules
 # 	sudo mkdir mount/bin # for binary executables
 # 	sudo mkdir mount/sys # for system files
 # 	./diskwrite -v -o image.bin
 	# ./diskwrite -v -l kernel.elf idm.elf -o image.bin
 	qemu-system-i386 -hda image.bin -hdb test.bin --no-reboot --no-shutdown -m 256m -smp 2 -serial mon:stdio -D intlog.txt -d int
-	sudo umount mount
+# 	sudo umount mount
 
 tools:
 	$(CC) tools/diskwrite.c -o diskwrite

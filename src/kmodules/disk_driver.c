@@ -224,20 +224,24 @@ uint32_t find_free_drive(){
 
 int ata_write(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
     if (count == 0) return -1;
-    ata_acquire_primary_lock();
-    // }
     drive_t drive = drives[file->id];
     uint16_t io_base = drive.BARs[0] &0xfffe;
     uint16_t ctrl_base = drive.BARs[1] &0xfffe;
     uint16_t bm_base = drive.BARs[4] & ~3;
-
+    // puts(api, MODULE_NAME, "Prelock\n");
+    ata_acquire_primary_lock();
+    // puts(api, MODULE_NAME, "Postlock\n");
     
     PRD_T *prdt = drive.PRDT;
+    // api(MODULE_API_PRINT, MODULE_NAME, "%x, %x, %x, %x\n", io_base, ctrl_base, bm_base, api(MODULE_API_PADDR, prdt));
     uint32_t pages = (count + 4095) / 4096;
     
+    // api(MODULE_API_PRINT, MODULE_NAME, "pid: %x, index: %x\n", transferring_pid, transferring_disk_index);
+    // while(transferring_disk_index != -1);
     uint32_t sector_count = pages*8;
     // api(MODULE_API_PRINT, MODULE_NAME, "pages: %x, scount: %x\n", pages, sector_count);
     if (sector_count == 0) return -1;
+    // api(MODULE_API_PRINT, MODULE_NAME, "Pages: %x\n", pages);
     for (uint32_t i = 0; i < pages; i++) {
         prdt[i].address = api(MODULE_API_PADDR, ptr + (i << 12));
         // api(MODULE_API_PRINT, MODULE_NAME, "ADDR: %x, Count: %x", ptr + (i << 12), api(MODULE_API_PADDR, prdt));
@@ -249,13 +253,12 @@ int ata_write(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
             // api(MODULE_API_PRINT, MODULE_NAME, "Reserved: %x\n", prdt[i].reserved);
         }
     }
-    
     outb(ctrl_base, 0x00);
     outb(bm_base + 2, 0x06);
     outl(bm_base + 4, api(MODULE_API_PADDR, prdt));
     uint32_t test = inl(bm_base + 4);
     // api(MODULE_API_PRINT, MODULE_NAME, "PRDT (Read back from busmaster): %x\n", test);
-    outb(bm_base, 0x00);
+    outb(bm_base, 0x08);
     
     while(!ata_ready(io_base, ctrl_base, drive.flags.slave << 4)){
         asm("int $32\n");
@@ -291,30 +294,35 @@ int ata_write(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
     recieved_ints = 0;
     
     asm("cli");
-    
+    // puts(api, MODULE_NAME, "cli\n");
+    transferring_disk_index = file->id;
     uint32_t cpid = api(MODULE_API_GET_CPID);
     // api(MODULE_API_PRINT, MODULE_NAME, "Cpid: %x", cpid);
     api(MODULE_API_BLOCK_PID, cpid);
     transferring_pid = cpid;
     
     outb(bm_base, 0x01); 
-    
+    // asm("sti"); // TODO: Make it so that instead of sti(), restore interrupt flag
     if(!api(MODULE_API_IS_INTERRUPT)) asm("sti");
-    
-    transferring_disk_index = file->id;
     
     uint8_t status = inb(ctrl_base);
     uint8_t bm_status = inb(bm_base + 2);
-
+    // api(MODULE_API_PRINT, MODULE_NAME, "Status: (ATA)%x, (Busmaster)%x\n", status, bm_status);
+    // if(ATA_ABRT(status)){
+        //     puts(api, MODULE_NAME, "Command aborted\n");
+        //     return -1;
+        // }
     asm("int $32\n");
-    
     while(!ata_ready(io_base, ctrl_base, drive.flags.slave << 4)){
         asm("int $32\n");
     }
     outb(io_base + ATA_DRIVE_HEAD, 0x40 | (drive.flags.slave << 4));
+    // api(MODULE_API_PRINT, MODULE_NAME, "Huge? %x\n", drive.flags.huge);
     outb(io_base + ATA_COMMAND, ATA_CMD_CACHE_FLUSH_EXT);
     
-    // }
+    while(!ata_ready(io_base, ctrl_base, drive.flags.slave << 4)){
+        asm("int $32\n");
+    }
     
     return 0;
 }
@@ -423,7 +431,7 @@ cpu_registers_t *int_handler(cpu_registers_t * regs){
     
     uint8_t status = inb(dmabar + 2);
     
-    api(MODULE_API_PRINT, MODULE_NAME, "Interrupt called, %x\n", status);
+    // api(MODULE_API_PRINT, MODULE_NAME, "Interrupt called, %x\n", status);
     
     if(!(status & 0x4)){
         return regs;

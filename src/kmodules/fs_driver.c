@@ -65,23 +65,17 @@ void recache_fat32_table(uint32_t index, uint32_t size, uint32_t mount_index){
     uint32_t max_fat_index = min_fat_index + fat32_mounts[mount_index].fat_cache_size;
     
     uint32_t fat_start = fat32_mounts[mount_index].fat_start_sector * fat32_mounts[mount_index].mount_src->minimum_rw_size;
-    api(MODULE_API_PRINT, MODULE_NAME, "FAT start byte: %x at file: %s\n", fat_start, fat32_mounts[mount_index].mount_src->name);
     
     if(!new_allocation){
         fwrite(api, fat32_mounts[mount_index].mount_src, fat32_mounts[mount_index].fat_cache, fat_start + min_fat_index * sizeof(uint32_t), FAT_CACHE_SIZE_ENTRIES * sizeof(uint32_t));
     }
+    
     min_fat_index = index & 0xffffc000;
+    
     fat32_mounts[mount_index].fat_cache_start = min_fat_index;
     fat32_mounts[mount_index].fat_cache_size = FAT_CACHE_SIZE_ENTRIES;
-    // api(MODULE_API_PRINT, MODULE_NAME, "Old index: %x | New index: %x\n", fat32_mounts[mount_index].fat_cache_start, min_fat_index);
-    api(MODULE_API_PRINT, MODULE_NAME, "Read offset: %x\n", fat_start + min_fat_index * sizeof(uint32_t));
+    
     fread(api, fat32_mounts[mount_index].mount_src, fat32_mounts[mount_index].fat_cache, fat_start + min_fat_index * sizeof(uint32_t), FAT_CACHE_SIZE_ENTRIES * sizeof(uint32_t));
-    
-    puts(api, MODULE_NAME, "Wuh?\n");
-    
-    for(int i = 0; i < 8; i++){
-        api(MODULE_API_PRINT, MODULE_NAME, "%x\n", fat32_mounts[mount_index].fat_cache[i]);
-    }
 }
 //returns zero if OOB, returns 1 if in bounds
 uint8_t fat32_check_bounds(uint32_t index, uint32_t mount_index){
@@ -115,11 +109,90 @@ uint32_t fat32_get_next_cluster(uint32_t index, uint32_t mount_index){
     return fat32_mounts[mount_index].fat_cache[index - min_fat_index];
 }
 
-uint32_t fat32_read_dirent(fat_dirent_t dirent, char *buffer, uint32_t mount_index){
-    
+uint32_t fat32_read_dirent(fat_dirent_t *dirent, char *buffer, uint32_t mount_index){
+    uint32_t cluster = fat32_mounts[mount_index].bpb->root_dir_cluster;
+    if(dirent){
+        cluster = dirent->cluster_high << 16 | dirent->cluster_low;
+    }
+    fat_mount_t *mount = &(fat32_mounts[mount_index]);
+    api(MODULE_API_PRINT, MODULE_NAME, "Data Offset: %x\n", mount->data_start_sector * mount->bpb->bytes_per_sector);
+    uint32_t cluster_number = 0;
+    while(cluster < 0x0FFFFFF8){
+        api(MODULE_API_PRINT, MODULE_NAME, "Cluster: %x\n", cluster);
+        
+        uint32_t cluster_offset_start = (mount->data_start_sector + ((cluster - 2) * mount->bpb->sectors_per_cluster)) * mount->bpb->bytes_per_sector;
+        
+        api(MODULE_API_PRINT, MODULE_NAME, "Data Offset: %x\n", cluster_offset_start);
+        api(MODULE_API_PRINT, MODULE_NAME, "Byte Count: %x\n", mount->bpb->bytes_per_sector * mount->bpb->sectors_per_cluster);
+        
+        fread(api, mount->mount_src, buffer + cluster_number * mount->bpb->sectors_per_cluster * mount->bpb->bytes_per_sector, cluster_offset_start, mount->bpb->bytes_per_sector * mount->bpb->sectors_per_cluster);
+        
+        cluster_number++;
+        cluster = fat32_get_next_cluster(cluster, mount_index);
+    }
+    return 0;
+}
+
+uint32_t fat32_build_filename_long(uint32_t start_index, char *filename, fat_dirent_t *dir_data){
+    const uint32_t LFN_ENTRY_CHAR_COUNT = 13;
+    if(!dir_data || !filename || dir_data[start_index].flags != FAT32_LONG_FILE_NAME){
+        return start_index;
+    }
+    uint32_t index = start_index;
+    while((dir_data[index].flags & FAT32_LONG_FILE_NAME) && dir_data[index].name[0]){
+        fat_lfn_t *lfn_ent = &(dir_data[index]);
+        uint32_t filename_index_start = ((lfn_ent->entry_no & 0x3f) - 1) * LFN_ENTRY_CHAR_COUNT; //Strip `last entry` flag and zero index
+        
+        uint32_t i = 0;
+        uint32_t j = 0;
+        for(j = 0; j < sizeof(lfn_ent->name0)/sizeof(uint16_t); i++, j++){
+            if(lfn_ent->name0[j] == 0xffff || lfn_ent->name0[j] == 0x0000) break;
+            filename[i + filename_index_start] = lfn_ent->name0[j];
+        }
+        for(j = 0; j < sizeof(lfn_ent->name1)/sizeof(uint16_t); i++, j++){
+            if(lfn_ent->name1[j] == 0xffff || lfn_ent->name1[j] == 0x0000) break;
+            filename[i + filename_index_start] = lfn_ent->name1[j];
+        }
+        for(j = 0; j < sizeof(lfn_ent->name2)/sizeof(uint16_t); i++, j++){
+            if(lfn_ent->name2[j] == 0xffff || lfn_ent->name2[j] == 0x0000) break;
+            filename[i + filename_index_start] = lfn_ent->name2[j];
+        }
+        index++;
+    }
+    return index;
+}
+
+//could be cleaned up, but it works
+//don't ask about the magic numbers, or why some of the numbers are the way they are, they just are
+void fat32_copy_short_filename(uint32_t index, char *filename, fat_dirent_t *dir_data){
+    uint32_t j = 0;
+    for(; j < 8; j++){
+        filename[j] = dir_data[index].name[j];
+    }
+    while((filename[j] == ' ' || filename[j] == 0) && j > 0){
+        filename[j] = 0;
+        j--;
+    }
+    filename[++j] = dir_data[index].name[8] ? '.' : 0;
+    for(int i = 8; i < 11; i++){
+        filename[j + i - 7] = dir_data[index].name[i];
+    }
 }
 
 fat_open_file_t *fat32_search_dir(char *path, fat_dirent_t *dir_data){
+    uint32_t i = 0;
+    const int DIR_ENT_MAX = 65536;
+    while(dir_data[i].name[0] && i < DIR_ENT_MAX){
+        char filename[256] = {0};
+        if(dir_data[i].flags == FAT32_LONG_FILE_NAME){
+            i = fat32_build_filename_long(i, filename, dir_data);
+        }
+        else{
+            fat32_copy_short_filename(i, filename, dir_data);
+        }
+        api(MODULE_API_PRINT, MODULE_NAME, "Filename: %s\n", filename);
+        i++;
+    }
     return 0;
 }
 
@@ -172,9 +245,8 @@ fat_open_file_t *resolve_path(char *path, vfile_t *parent){
         
         api(MODULE_API_PRINT, MODULE_NAME, "Size to alloc: %d\n", size_to_alloc);
         fat_dirent_t *dir_data = malloc(api, size_to_alloc);
-        recache_fat32_table(0, FAT_CACHE_SIZE_ENTRIES, parent->id);
         
-        
+        fat32_read_dirent(parent_dir, dir_data, parent->id);
         
         parent_dir = fat32_search_dir(path_tokens[i], dir_data);
     }
