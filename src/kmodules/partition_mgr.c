@@ -33,7 +33,7 @@ int write_part(vfile_t *file_entry, void *buffer, uint32_t offset, uint32_t coun
     partent_t *partent = file_entry->private;
     vfile_t *parent = disk_references[parent_index].parent;
     // disk_references[parent_index].parent->fileops->read()
-    parent->fileops->write(parent, buffer, offset + partent->start_lba * parent->minimum_rw_size, count);
+    parent->fileops->write(parent, buffer, offset + partent->start_lba * parent->block_size_bytes, count);
     // parent->fileops->write(parent, buffer, offset + partent->start_lba * 512, count);
 }
 
@@ -46,7 +46,7 @@ int read_part(vfile_t *file_entry, void *buffer, uint32_t offset, uint32_t count
     partent_t *partent = file_entry->private;
     vfile_t *parent = disk_references[parent_index].parent;
     // disk_references[parent_index].parent->fileops->read()
-    parent->fileops->read(parent, buffer, offset + partent->start_lba * parent->minimum_rw_size, count);
+    parent->fileops->read(parent, buffer, offset + partent->start_lba * parent->block_size_bytes, count);
     // parent->fileops->read(parent, buffer, offset + partent->start_lba * parent, count);
 }
 

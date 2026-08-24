@@ -222,6 +222,45 @@ uint32_t find_free_drive(){
     return -1;
 }
 
+inline void *align_page(void *ptr){
+    return (void *)(((uintptr_t)ptr + PAGE_SIZE_BYTES - 1) & ~(PAGE_SIZE_BYTES - 1));
+}
+
+inline uint32_t max_u32(uint32_t a, uint32_t b){
+    return a > b ? a : b;
+}
+inline uint32_t min_u32(uint32_t a, uint32_t b){
+    return a < b ? a : b;
+}
+
+int read_disk(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
+    const uint32_t LBA28_READ_BOUNDARY = 0x20000;
+    uint32_t read_count = (count + (LBA28_READ_BOUNDARY - 1)) / LBA28_READ_BOUNDARY;
+    uint32_t remaining_count = count;
+    if(count == 0) return 0;
+    for(uint32_t i = 0; i < read_count; i++){
+        uint32_t to_read = (remaining_count % LBA28_READ_BOUNDARY);
+        if(to_read == 0) to_read = LBA28_READ_BOUNDARY;
+        remaining_count -= to_read;
+        ata_read(file, ptr + LBA28_READ_BOUNDARY * i, offset + LBA28_READ_BOUNDARY * i, to_read);
+    }
+    return count;
+}
+
+int write_disk(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
+    const uint32_t LBA28_WRITE_BOUNDARY = 0x20000;
+    uint32_t write_count = (count + (LBA28_WRITE_BOUNDARY - 1)) / LBA28_WRITE_BOUNDARY;
+    uint32_t remaining_count = count;
+    if(count == 0) return 0;
+    for(uint32_t i = 0; i < write_count; i++){
+        uint32_t to_write = (remaining_count % LBA28_WRITE_BOUNDARY);
+        if(to_write == 0) to_write = LBA28_WRITE_BOUNDARY;
+        remaining_count -= to_write;
+        ata_write(file, ptr + LBA28_WRITE_BOUNDARY * i, offset + LBA28_WRITE_BOUNDARY * i, to_write);
+    }
+    return count;
+}
+
 int ata_write(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
     if (count == 0) return -1;
     drive_t drive = drives[file->id];
@@ -576,7 +615,7 @@ uint8_t ata_identify(uint32_t index, uint16_t disk){
     // new_file->write = ata_write;
     new_file->id = index;
     new_file->fileops = &ide_fileops;
-    new_file->minimum_rw_size = 512;
+    new_file->block_size_bytes = 512;
     puts(api, "KIDM", "Valid Drive!\n");
     api(MODULE_API_DISPATCH_MESSAGE, (uint32_t)MESSAGE_DEVICE_ADD, new_file);
     return 0;
@@ -654,8 +693,8 @@ void init(KOS_MAPI_FP module_api, uint32_t api_version){
     ide_fileops = (fileops_t){
         0,
         0,
-        ata_write,
-        ata_read,
+        write_disk,
+        read_disk,
         0,
         0,
     };

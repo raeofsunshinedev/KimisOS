@@ -178,7 +178,7 @@ typedef struct virtual_file {
     uint32_t size;
     uint32_t offset;
 
-    uint16_t minimum_rw_size;
+    uint16_t block_size_bytes;
 } vfile_t;
 ```
 
@@ -249,6 +249,8 @@ void init(...) {
 }
 ```
 
+When reading/writing to a file, It is best practice to assume that pointers MUST be page aligned (guaranteed by `KERNEL_API_MALLOC`), and that offsets and byte counts should be aligned with the `vfile_t.block_size_bytes`
+
 ---
 
 # Device Creation
@@ -282,7 +284,7 @@ vfile_t *device =
             FS_FILE_SYSTEM);
 
 device->fileops = &ide_fileops;
-device->minimum_rw_size = 512;
+device->block_size_bytes = 512;
 device->id = drive_index;
 
 api(MODULE_API_DISPATCH_MESSAGE,
@@ -379,7 +381,7 @@ Offsets and sizes are measured in bytes.
 Block devices must provide:
 
 ```c
-vfile_t->minimum_rw_size
+vfile_t->block_size_bytes
 ```
 
 This describes the smallest valid read/write unit.
@@ -387,7 +389,7 @@ This describes the smallest valid read/write unit.
 Example:
 
 ```c
-disk->minimum_rw_size = 512;
+disk->block_size_bytes = 512;
 ```
 
 Consumers must not assume a fixed sector size.
@@ -398,7 +400,7 @@ The partition manager module uses this value when converting partition LBAs into
 
 ```c
 byte_offset =
-    start_lba * parent->minimum_rw_size;
+    start_lba * parent->block_size_bytes;
 ```
 
 ---
@@ -564,7 +566,7 @@ vfile_t *disk =
             FS_FILE_SYSTEM);
 
 disk->fileops = &ide_fileops;
-disk->minimum_rw_size = 512;
+disk->block_size_bytes = 512;
 disk->id = drive_id;
 
 api(MODULE_API_DISPATCH_MESSAGE,

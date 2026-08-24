@@ -161,7 +161,7 @@ vfile_t *ramfs_create(vfile_t *root, char *path, FS_FILE_FLAGS flags){
     new_file->flags = flags;
     dirents[parent->size/(sizeof(vfile_t*)) - 1] = new_file;
     new_file->fileops = &ramfs_ops;
-    new_file->minimum_rw_size = 1;
+    new_file->block_size_bytes = 1;
     path--;
     return new_file;
 }

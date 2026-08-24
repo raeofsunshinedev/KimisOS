@@ -79,7 +79,7 @@ void recache_fat32_table(uint32_t index, uint32_t size, uint32_t mount_index){
     uint32_t min_fat_index = fat32_mounts[mount_index].fat_cache_start;
     uint32_t max_fat_index = min_fat_index + fat32_mounts[mount_index].fat_cache_size;
     
-    uint32_t fat_start = fat32_mounts[mount_index].fat_start_sector * fat32_mounts[mount_index].mount_src->minimum_rw_size;
+    uint32_t fat_start = fat32_mounts[mount_index].fat_start_sector * fat32_mounts[mount_index].mount_src->block_size_bytes;
     
     if(!new_allocation){
         fwrite(api, fat32_mounts[mount_index].mount_src, fat32_mounts[mount_index].fat_cache, fat_start + min_fat_index * sizeof(uint32_t), FAT_CACHE_SIZE_ENTRIES * sizeof(uint32_t));
@@ -314,7 +314,7 @@ vfile_t *fat32_open(char *path, vfile_t *parent){
     //cache entry
     to_return->offset = fat32_cache_open(file);
     to_return->private = file;
-    to_return->minimum_rw_size = 0;
+    to_return->block_size_bytes = 0;
     to_return->refcount = 1;
     return to_return;
 }
@@ -410,7 +410,7 @@ uint32_t fat32_mount(vfile_t *dev_file, char *destination, uint32_t offset){
     mountfile->fileops = &fat32_fileops;
     mountfile->id = index;
     mountfile->size = filesize;
-    mountfile->minimum_rw_size = bpb->bytes_per_sector * bpb->sectors_per_cluster;
+    mountfile->block_size_bytes = bpb->bytes_per_sector * bpb->sectors_per_cluster;
     mountfile->private = root_dir;
     
     spinlock_init(&(mount->spinlock));
