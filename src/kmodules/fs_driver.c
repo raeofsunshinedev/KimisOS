@@ -327,11 +327,11 @@ int fat32_delete(vfile_t *file){
     
 }
 
-int fat32_write(vfile_t *file, void *buffer, uint32_t offset, uint32_t count){
+int fat32_write(vfile_t *file, void *buffer, uint64_t offset, uint64_t count){
     
 }
 
-int fat32_read(vfile_t *file, void *buffer, uint32_t offset, uint32_t count){
+int fat32_read(vfile_t *file, void *buffer, uint64_t offset, uint64_t count){
     puts(api, MODULE_NAME, "Read called!\n");
 }
 
@@ -396,6 +396,7 @@ uint32_t fat32_mount(vfile_t *dev_file, char *destination, uint32_t offset){
     vfile_t *mountfile = fcreate(api, destination, FS_FILE_MOUNT);
     
     if(!mountfile){
+        puts(api, MODULE_NAME, "Failed to create mountfile\n");
         free(api, bpb);
         free(api, fsinfo);
         *mount = (fat_mount_t){0};

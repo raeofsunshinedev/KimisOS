@@ -15,8 +15,8 @@ typedef enum fs_flags{
 typedef struct fileops{
     struct virtual_file *(*create)(struct virtual_file *parent, char *path, FS_FILE_FLAGS flags);
     int (*delete)(struct virtual_file *parent, char *child);
-    int (*write)(struct virtual_file *file_entry, void *data, uint32_t offset, uint32_t count);
-    int (*read)(struct virtual_file *file_entry, void *data, uint32_t offset, uint32_t count);
+    int (*write)(struct virtual_file *file_entry, void *data, uint64_t offset, uint64_t count);
+    int (*read)(struct virtual_file *file_entry, void *data, uint64_t offset, uint64_t count);
     // struct virtual_file *(*open)(char *path);
     void (*close)(struct virtual_file *file);
     // int (*readdir)(struct virtual_file* file, struct virtual_file *buffer, uint32_t count, uint32_t offset);
@@ -51,8 +51,8 @@ void vfs_init();
 // vfile_t *rfopen(char *name, vfile_t dir);
 vfile_t *fcreate(char *path, FS_FILE_FLAGS flags);
 int fdelete(vfile_t *parent, char *child);
-int fwrite(vfile_t *file_entry, void *byte_array, uint32_t offset, uint32_t count);
-int fread(vfile_t *file_entry, void *byte_array, uint32_t offset, uint32_t count);
+int fwrite(vfile_t *file_entry, void *byte_array, uint64_t offset, uint64_t count);
+int fread(vfile_t *file_entry, void *byte_array, uint64_t offset, uint64_t count);
 // int readdir(vfile_t* file, vfile_t *buffer, uint32_t offset, uint32_t count);
 
 vfile_t *vfcreate(vfile_t *parent, char *relpath, FS_FILE_FLAGS flags);

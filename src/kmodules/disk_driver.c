@@ -9,8 +9,8 @@
 
 KOS_MAPI_FP api;
 
-int ata_read(vfile_t *file, uint8_t *ptr, uint32_t offset, uint32_t count);
-int ata_write(vfile_t *file, void *ptr, uint32_t offset, uint32_t count);
+int ata_read(vfile_t *file, uint8_t *ptr, uint64_t offset, uint64_t count);
+int ata_write(vfile_t *file, void *ptr, uint64_t offset, uint64_t count);
 fileops_t ide_fileops = {
     0,
     0,
@@ -233,7 +233,7 @@ inline uint32_t min_u32(uint32_t a, uint32_t b){
     return a < b ? a : b;
 }
 
-int read_disk(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
+int read_disk(vfile_t *file, void *ptr, uint64_t offset, uint64_t count){
     const uint32_t LBA28_READ_BOUNDARY = 0x20000;
     uint32_t read_count = (count + (LBA28_READ_BOUNDARY - 1)) / LBA28_READ_BOUNDARY;
     uint32_t remaining_count = count;
@@ -247,7 +247,7 @@ int read_disk(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
     return count;
 }
 
-int write_disk(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
+int write_disk(vfile_t *file, void *ptr, uint64_t offset, uint64_t count){
     const uint32_t LBA28_WRITE_BOUNDARY = 0x20000;
     uint32_t write_count = (count + (LBA28_WRITE_BOUNDARY - 1)) / LBA28_WRITE_BOUNDARY;
     uint32_t remaining_count = count;
@@ -261,7 +261,7 @@ int write_disk(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
     return count;
 }
 
-int ata_write(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
+int ata_write(vfile_t *file, void *ptr, uint64_t offset, uint64_t count){
     if (count == 0) return -1;
     drive_t drive = drives[file->id];
     uint16_t io_base = drive.BARs[0] &0xfffe;
@@ -366,7 +366,7 @@ int ata_write(vfile_t *file, void *ptr, uint32_t offset, uint32_t count){
     return 0;
 }
 
-int ata_read(vfile_t *file, uint8_t *ptr, uint32_t offset, uint32_t count) {
+int ata_read(vfile_t *file, uint8_t *ptr, uint64_t offset, uint64_t count) {
     if (count == 0) return -1;
     drive_t drive = drives[file->id];
     uint16_t io_base = drive.BARs[0] &0xfffe;
@@ -711,7 +711,7 @@ void init(KOS_MAPI_FP module_api, uint32_t api_version){
     
     vfile_t *dir_data = malloc(api, (PCI_SEARCH_COUNT * sizeof(vfile_t) + 4095)/4096);
     
-    uint32_t file_count = api(MODULE_API_READ, pci_drive_dir, dir_data, 0, PCI_SEARCH_COUNT * sizeof(vfile_t))/sizeof(vfile_t);
+    uint32_t file_count = api(MODULE_API_READ, pci_drive_dir, dir_data, (uint64_t)0, (uint64_t)(PCI_SEARCH_COUNT * sizeof(vfile_t)))/sizeof(vfile_t);
     api(MODULE_API_PRINT, MODULE_NAME, "File count: %x\n", file_count);
     
     for(uint32_t i = 0; i < file_count; i++){

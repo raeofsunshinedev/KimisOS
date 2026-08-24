@@ -77,8 +77,8 @@ typedef enum fs_flags{
 typedef struct fileops{
     struct virtual_file *(*create)(struct virtual_file *parent, char *path, FS_FILE_FLAGS flags);
     int (*delete)(struct virtual_file *parent, char *child);
-    int (*write)(struct virtual_file *file_entry, void *data, uint32_t offset, uint32_t count);
-    int (*read)(struct virtual_file *file_entry, void *data, uint32_t offset, uint32_t count);
+    int (*write)(struct virtual_file *file_entry, void *data, uint64_t offset, uint64_t count);
+    int (*read)(struct virtual_file *file_entry, void *data, uint64_t offset, uint64_t count);
     // struct virtual_file *(*open)(char *path);
     void (*close)(struct virtual_file *file);
     // int (*readdir)(struct virtual_file* file, struct virtual_file *buffer, uint32_t count, uint32_t offset);
@@ -119,10 +119,10 @@ inline vfile_t *fopen(KOS_MAPI_FP api, char *filename){
     // vfile_t *file = malloc(api, 1);
     return (void *)api(MODULE_API_OPEN, filename);
 }
-inline int fread(KOS_MAPI_FP api, vfile_t *file, char *buffer, uint32_t offset, uint32_t count){
+inline int fread(KOS_MAPI_FP api, vfile_t *file, char *buffer, uint64_t offset, uint64_t count){
     return api(MODULE_API_READ, file, buffer, offset, count);
 }
-inline int fwrite(KOS_MAPI_FP api, vfile_t *file, char *buffer, uint32_t offset, uint32_t count){
+inline int fwrite(KOS_MAPI_FP api, vfile_t *file, char *buffer, uint64_t offset, uint64_t count){
     return api(MODULE_API_WRITE, file, buffer, offset, count);
 }
 //read documenation for this one

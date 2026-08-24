@@ -122,5 +122,5 @@ typedef struct fat_lfn_s{
     uint16_t name2[2];
 }__attribute__((packed)) fat_lfn_t;
 
-int fat32_read(vfile_t *file, void *buffer, uint32_t offset, uint32_t count);
-int fat32_write(vfile_t *file, void *buffer, uint32_t offset, uint32_t count);
+int fat32_read(vfile_t *file, void *buffer, uint64_t offset, uint64_t count);
+int fat32_write(vfile_t *file, void *buffer, uint64_t offset, uint64_t count);

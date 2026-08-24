@@ -24,7 +24,7 @@ pref_t *disk_references;
 fileops_t mount_fileops = {};
 
 
-int write_part(vfile_t *file_entry, void *buffer, uint32_t offset, uint32_t count){
+int write_part(vfile_t *file_entry, void *buffer, uint64_t offset, uint64_t count){
     const int SECTOR_SIZE_BYTES;
     if(!file_entry || !buffer || !count){
         return 0;
@@ -37,7 +37,7 @@ int write_part(vfile_t *file_entry, void *buffer, uint32_t offset, uint32_t coun
     // parent->fileops->write(parent, buffer, offset + partent->start_lba * 512, count);
 }
 
-int read_part(vfile_t *file_entry, void *buffer, uint32_t offset, uint32_t count){
+int read_part(vfile_t *file_entry, void *buffer, uint64_t offset, uint64_t count){
     const int SECTOR_SIZE_BYTES;
     if(!file_entry || !buffer || !count){
         return 0;

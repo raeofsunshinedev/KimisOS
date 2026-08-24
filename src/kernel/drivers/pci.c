@@ -34,16 +34,16 @@ uint16_t pci_write_config(uint32_t bus, uint32_t slot, uint32_t func, uint8_t of
 }
 
 
-void pci_read_file(vfile_t *file, uint32_t *buffer, uint32_t offset, uint32_t count){
+void pci_read_file(vfile_t *file, uint32_t *buffer, uint64_t offset, uint64_t count){
     uint8_t bus = file->id >> 16;
     uint8_t func = file->id>> 8 & 0xff;
     uint8_t slot = file->id & 0xff;
     for(uint32_t i = 0; i < (count); i++){
-        buffer[i] = pci_read_config(bus, slot, func, offset + i*4) | (pci_read_config(bus, slot, func, offset + i*4 + 2) << 16);
+        buffer[i] = pci_read_config(bus, slot, func, offset + i*4) | (pci_read_config(bus, slot, func, (uint8_t)offset + i*4 + 2) << 16);
     }
     return;
 }
-void pci_write_file(vfile_t *file, uint32_t *buffer, uint32_t offset, uint32_t count){
+void pci_write_file(vfile_t *file, uint32_t *buffer, uint64_t offset, uint64_t count){
     return;
 }
 
@@ -92,6 +92,7 @@ void pci_make_file(uint32_t class, uint8_t bus, uint8_t slot, uint8_t func){
             mlog(MODULE_NAME, "Failed to make file for PCI device %s!\n", MLOG_PRINT, cpy);
             return;
         }
+        mlog(MODULE_NAME, "PCI file: %s\n", MLOG_PRINT, cpy);
         // printf("ASSERT file == null: %d\n", file == 0);
         file->fileops = &pci_fileops;
     // }
@@ -137,6 +138,7 @@ void pci_enumerate_bus(uint8_t bus){
 
 void pci_init(){
     mlog(MODULE_NAME, "Enumerating PCI Buses\n", MLOG_PRINT);
+    
     vfile_t *file = fcreate("/dev/pci/", FS_FILE_IS_DIR);
     fcreate("/dev/pci/disk", FS_FILE_IS_DIR);
     fcreate("/dev/pci/net", FS_FILE_IS_DIR);

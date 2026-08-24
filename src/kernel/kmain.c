@@ -42,6 +42,14 @@ void sysinit(){
     vfile_t *home = fopen("/home/hellofat.txt");
     home = fopen("/home/longfilenametest.txt");
     
+    // vfile_t *test = fopen("/dev/pci/disk/ide0");
+    // if(!test){
+    //     printf("Does not exist!\n");
+    // }
+    // else{
+    //     printf("Does exist!\n");
+    // }
+    
     printf("Bleh\n");
     for(;;);
 }

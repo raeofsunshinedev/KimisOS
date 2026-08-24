@@ -166,13 +166,14 @@ vfile_t *ramfs_create(vfile_t *root, char *path, FS_FILE_FLAGS flags){
     return new_file;
 }
 
-int ramfs_translate_dir(vfile_t *file, void *buffer, uint32_t offset, uint32_t count){
+int ramfs_translate_dir(vfile_t *file, void *buffer, uint64_t offset, uint64_t count){
     uint32_t dirents_requested = count / sizeof(vfile_t);
     uint32_t dirents_availible = file->size / sizeof(vfile_t *);
+    // printf("Translate called! %x, %x", dirents_availible, dirents_requested);
     uint32_t to_copy = unsigned_min(dirents_availible, dirents_requested);
     vfile_t **dirents = (vfile_t **)file->private;
     for(uint32_t i = 0; i < to_copy; i++){
-        memcpy(dirents[i], buffer + i * sizeof(vfile_t), sizeof(vfile_t));
+        memcpy(dirents[i + offset], buffer + i * sizeof(vfile_t), sizeof(vfile_t));
     }
     return to_copy * sizeof(vfile_t);
 }
@@ -180,14 +181,14 @@ int ramfs_translate_dir(vfile_t *file, void *buffer, uint32_t offset, uint32_t c
 int ramfs_delete(vfile_t *parent, char *child){
     return 0;
 }
-int ramfs_write(vfile_t *file, char *buffer, uint32_t offset, uint32_t count){
+int ramfs_write(vfile_t *file, char *buffer, uint64_t offset, uint64_t count){
     //file->private can be null here, as ramfs_resize will handle assigning if it is not already assigned
     if(!file || !buffer || (file->flags & (FS_FILE_READ_ONLY | FS_FILE_IS_DIR | FS_FILE_MOUNT))) return 0;
     if(!ramfs_resize(file, count + offset)) return 0;
     memcpy(buffer, file->private + offset, count);
     return count;
 }
-int ramfs_read(vfile_t *file, char *buffer, uint32_t offset, uint32_t count){
+int ramfs_read(vfile_t *file, char *buffer, uint64_t offset, uint64_t count){
     if(!file || !buffer || !file->private || file->flags & (FS_FILE_MOUNT)) return 0;
     if(file->flags & FS_FILE_IS_DIR){
         return ramfs_translate_dir(file, buffer, offset, count);

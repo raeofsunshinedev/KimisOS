@@ -77,14 +77,14 @@ int fdelete(vfile_t *parent, char *child){
 }
 //Is expected to overwrite, not append if it is an actual file
 //Devices and anything Not A File is exempt (i.e. Blockdevs, chardevs, etc)
-int fwrite(vfile_t *file_entry, void *byte_array, uint32_t offset, uint32_t count){
+int fwrite(vfile_t *file_entry, void *byte_array, uint64_t offset, uint64_t count){
     if(!file_entry || !file_entry->fileops || !file_entry->fileops->write ||!byte_array || count == 0){
         return 0;
     }
     return file_entry->fileops->write(file_entry, byte_array, offset, count);
 }
 
-int fread(vfile_t *file_entry, void *byte_array, uint32_t offset, uint32_t count){
+int fread(vfile_t *file_entry, void *byte_array, uint64_t offset, uint64_t count){
     if(!file_entry || !file_entry->fileops || !file_entry->fileops->read || !byte_array || count == 0){
         return 0;
     }
