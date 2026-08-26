@@ -51,26 +51,6 @@ void sysinit(){
     
     home = fopen("/sys/longfilenametest.txt");
     fwrite(home, buffer, 0, 4096 * 16);
-    // fread(home, buffer, 0, 4096*16);
-    printf("Starting timing test\n");
-    // home = fopen("/sys/hellofat.txt");
-    vfile_t *test = fopen("/dev/disk/ide0");
-    outb(0x70, 0x80);
-    uint8_t start_s = inb(0x71);
-    outb(0x70, 0x82);
-    uint8_t start_m = inb(0x71);
-    for(uint32_t i = 0; i < 128; i++){
-        fwrite(test, buffer, i * 4096, 4096);
-    }
-    
-    printf("Start: %d:%d\n", start_m, start_s);
-    outb(0x70, 0x80);
-    start_s = inb(0x71);
-    outb(0x70, 0x82);
-    start_m = inb(0x71);
-    void *test2 = kmalloc(128);
-    printf("Start: %d:%d\n", start_m, start_s);
-    fwrite(test, test2, 0, 128 * 4096);
     
     printf("Bleh\n");
     for(;;);

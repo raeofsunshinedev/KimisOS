@@ -352,7 +352,7 @@ int ata_write(vfile_t *file, void *ptr, uint64_t offset, uint64_t count){
         //     puts(api, MODULE_NAME, "Command aborted\n");
         //     return -1;
         // }
-    // asm("int $32\n");
+    asm("int $32\n");
     
     return 0;
 }
@@ -493,7 +493,6 @@ cpu_registers_t *int_handler(cpu_registers_t * regs){
     outb(0x70, 0x82);
     uint8_t end_m = inb(0x71);
     int_count++;
-    api(MODULE_API_PRINT, MODULE_NAME, "End: %d:%d | %x\n", end_m, end_s, int_count);
     transferring_disk_index = -1;
     api(MODULE_API_UNBLOCK_PID, transferring_pid);
     transferring_pid = 0;
