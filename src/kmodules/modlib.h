@@ -88,15 +88,15 @@ typedef struct fileops{
 //note: this is EXACTLY 256 bytes. This is for simplicity's sake.
 //PLEASE if you MUST reorganize or add fields, try and keep it to a power of 2?
 typedef struct virtual_file{
-    char name[84];
+    char name[76];
     uint16_t flags;
     fileops_t *fileops;
     uint32_t refcount; //filesystem MUST remain operational until all child refcounts == 0
     
     uint32_t id;//for use in drivers
     void *private; //also for use in drivers
-    uint32_t size; //should be in bytes
-    uint32_t offset; //for use in drivers
+    uint64_t size; //should be in bytes
+    uint64_t offset; //for use in drivers
     
     uint16_t block_size_bytes;
     
@@ -134,4 +134,13 @@ inline void puts(KOS_MAPI_FP api, char *mname, char *str){
 };
 inline uint8_t is_interrupt(KOS_MAPI_FP api){
     return api(MODULE_API_IS_INTERRUPT);
+}
+
+inline uint32_t udiv64(uint64_t dividend, uint32_t divisor){
+    uint32_t quotient;
+    uint32_t remainder;
+    uint32_t high = (uint32_t)(dividend >> 32);
+    uint32_t low = (uint32_t)dividend;
+    asm volatile ("divl %2\n" : "=d"(remainder), "=a"(quotient) : "r"(divisor), "0"(high), "1"(low));
+    return quotient;
 }

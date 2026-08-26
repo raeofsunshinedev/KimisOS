@@ -6,6 +6,9 @@
 #include "stdarg.h"
 #define MODULE_NAME "KIFSM"
 
+#define FAT32_EOC_MIN 0x0FFFFFF8
+#define FAT32_EOC 0x0FFFFFFF
+
 KOS_MAPI_FP api;
 
 void init(KOS_MAPI_FP module_api, uint32_t api_version);
@@ -81,15 +84,16 @@ void recache_fat32_table(uint32_t index, uint32_t size, uint32_t mount_index){
     
     uint32_t fat_start = fat32_mounts[mount_index].fat_start_sector * fat32_mounts[mount_index].mount_src->block_size_bytes;
     
-    if(!new_allocation){
+    if(!new_allocation && fat32_mounts[mount_index].flags.cache_dirty){
         fwrite(api, fat32_mounts[mount_index].mount_src, fat32_mounts[mount_index].fat_cache, fat_start + min_fat_index * sizeof(uint32_t), FAT_CACHE_SIZE_ENTRIES * sizeof(uint32_t));
     }
-    
-    min_fat_index = index & 0xffffc000;
+    //clear the lower bits
+    //FAT_CACHE_SIZE_ENTRIES should be a power of two
+    min_fat_index = index & -FAT_CACHE_SIZE_ENTRIES;
     
     fat32_mounts[mount_index].fat_cache_start = min_fat_index;
     fat32_mounts[mount_index].fat_cache_size = FAT_CACHE_SIZE_ENTRIES;
-    
+    fat32_mounts[mount_index].flags.cache_dirty = 0;
     fread(api, fat32_mounts[mount_index].mount_src, fat32_mounts[mount_index].fat_cache, fat_start + min_fat_index * sizeof(uint32_t), FAT_CACHE_SIZE_ENTRIES * sizeof(uint32_t));
 }
 //returns zero if OOB, returns 1 if in bounds
@@ -111,8 +115,11 @@ void fat32_set_next_cluster(uint32_t index, uint32_t value, uint32_t mount_index
     uint32_t max_fat_index = min_fat_index + fat32_mounts[mount_index].fat_cache_size;
     if(!fat32_check_bounds(index, mount_index)){
         recache_fat32_table(index, FAT_CACHE_SIZE_ENTRIES, mount_index);
+        min_fat_index = fat32_mounts[mount_index].fat_cache_start;
     }
+    fat32_mounts[mount_index].flags.cache_dirty = 1;
     fat32_mounts[mount_index].fat_cache[index - min_fat_index] = value;
+    fat32_mounts[mount_index].fat_search_start = index;
 }
 
 uint32_t fat32_get_next_cluster(uint32_t index, uint32_t mount_index){
@@ -120,8 +127,25 @@ uint32_t fat32_get_next_cluster(uint32_t index, uint32_t mount_index){
     uint32_t max_fat_index = min_fat_index + fat32_mounts[mount_index].fat_cache_size;
     if(!fat32_check_bounds(index, mount_index)){
         recache_fat32_table(index, FAT_CACHE_SIZE_ENTRIES, mount_index);
+        min_fat_index = fat32_mounts[mount_index].fat_cache_start;
     }
     return fat32_mounts[mount_index].fat_cache[index - min_fat_index];
+}
+
+uint32_t fat32_get_free_cluster(uint32_t mount_index){
+    fat_mount_t *mount = &fat32_mounts[mount_index];
+    uint32_t search_start = mount->fat_search_start;
+    uint32_t sector_count = mount->bpb->sector_count - mount->bpb->reserved_sectors - (mount->bpb->fat_count * mount->bpb->sectors_per_fat);
+    uint32_t entry_count = sector_count / mount->bpb->sectors_per_cluster;
+    // api(MODULE_API_PRINT, MODULE_NAME, "Sector count: %x | Entry count: %x | Reserved sectors: %x| Total sectors: %x", sector_count, entry_count, mount->bpb->reserved_sectors, mount->bpb->sector_count);
+    for(uint32_t i = search_start; i < entry_count; i++){
+        if(!fat32_get_next_cluster(i, mount_index)){
+            mount->fat_search_start = i;
+            // api(MODULE_API_PRINT, MODULE_NAME, "Found a free cluster at %d: %x", i, fat32_get_next_cluster(i, mount_index));
+            return i;
+        }
+    }
+    return 0;
 }
 
 uint32_t fat32_read_dirent(fat_dirent_t *dirent, char *buffer, uint32_t mount_index){
@@ -132,7 +156,7 @@ uint32_t fat32_read_dirent(fat_dirent_t *dirent, char *buffer, uint32_t mount_in
     fat_mount_t *mount = &(fat32_mounts[mount_index]);
     // api(MODULE_API_PRINT, MODULE_NAME, "Data Offset: %x\n", mount->data_start_sector * mount->bpb->bytes_per_sector);
     uint32_t cluster_number = 0;
-    while(cluster < 0x0FFFFFF8){
+    while(cluster < FAT32_EOC_MIN){
         // api(MODULE_API_PRINT, MODULE_NAME, "Cluster: %x\n", cluster);
         
         uint32_t cluster_offset_start = (mount->data_start_sector + ((cluster - 2) * mount->bpb->sectors_per_cluster)) * mount->bpb->bytes_per_sector;
@@ -194,7 +218,7 @@ void fat32_copy_short_filename(uint32_t index, char *filename, fat_dirent_t *dir
     }
 }
 
-fat_dirent_t *fat32_search_dir(char *path, fat_dirent_t *dir_data){
+fat_dirent_t *fat32_search_dir(char *path, fat_dirent_t *dir_data, uint32_t *dirent_index){
     uint32_t i = 0;
     const int DIR_ENT_MAX = 65536;
     while(dir_data[i].name[0] && i < DIR_ENT_MAX){
@@ -208,6 +232,7 @@ fat_dirent_t *fat32_search_dir(char *path, fat_dirent_t *dir_data){
         // api(MODULE_API_PRINT, MODULE_NAME, "filename: %s\n", filename);
         if(!strcmp(path, filename)){
             api(MODULE_API_PRINT, MODULE_NAME, "Found file: %s | Short: %s\n", filename, dir_data[i].name);
+            *dirent_index = i;
             return &dir_data[i];
         }
         i++;
@@ -255,7 +280,9 @@ fat_open_file_t *resolve_path(char *path, vfile_t *parent){
     if (pathname_entries < MAX_TOKENS) {
         path_tokens[pathname_entries++] = pathtok;
     }
+    fat_dirent_t last_parent_dir = {0};
     fat_dirent_t parent_dir = {0};
+    uint32_t dirent_index = 0;
     for(uint32_t i = 0; i < pathname_entries; i++){
         // api(MODULE_API_PRINT, MODULE_NAME, "Subpath: %s\n", path_tokens[i]);
         
@@ -267,14 +294,13 @@ fat_open_file_t *resolve_path(char *path, vfile_t *parent){
         
         fat32_read_dirent(&parent_dir, dir_data, parent->id);
         
-        fat_dirent_t *result = fat32_search_dir(path_tokens[i], dir_data);
-        
+        fat_dirent_t *result = fat32_search_dir(path_tokens[i], dir_data, &dirent_index);
         
         if(!result){
             free(api, dir_data);
             break;
         }
-        
+        last_parent_dir = parent_dir;
         parent_dir = *result;
         free(api, dir_data);
     }
@@ -290,7 +316,16 @@ fat_open_file_t *resolve_path(char *path, vfile_t *parent){
     uint32_t path_length = strlen(path);
     uint32_t copy_count = path_length >= 100 ? 100 : path_length;
     memcpy(path, returnable->filename, copy_count);
-    returnable->first_cluster = (parent_dir.cluster_high << 16) | parent_dir.cluster_low;
+    
+    returnable->first_cluster = (uint32_t)(parent_dir.cluster_high << 16) | parent_dir.cluster_low;
+    if(!last_parent_dir.name[0]){
+        returnable->dirent_cluster = fat32_mounts[parent->id].bpb->root_dir_cluster;
+        returnable->dirent_offset = dirent_index;
+    }
+    else{
+        returnable->dirent_cluster = ((uint32_t)(last_parent_dir.cluster_high << 16) | last_parent_dir.cluster_low);
+        returnable->dirent_offset = dirent_index;
+    }
     returnable->file_flags = parent_dir.flags;
     returnable->mount_index = parent->id;
     
@@ -328,11 +363,121 @@ int fat32_delete(vfile_t *file){
 }
 
 int fat32_write(vfile_t *file, void *buffer, uint64_t offset, uint64_t count){
+    puts(api, MODULE_NAME, "write called!\n");
+    fat_open_file_t *open_file = file->private;
+    fat_mount_t *mount = &fat32_mounts[open_file->mount_index];
+    uint32_t first_cluster = open_file->first_cluster;
+    uint32_t cluster_size_bytes = (mount->bpb->bytes_per_sector * mount->bpb->sectors_per_cluster);
+#ifdef __i386__
+    // api(MODULE_API_PRINT, MODULE_NAME, "Test %x\n", udiv64(8, 2));
+    uint32_t clusters_until_start = udiv64(offset, cluster_size_bytes);
+    uint32_t clusters_to_write = udiv64(count + cluster_size_bytes - 1, cluster_size_bytes);
+#else
+    uint32_t clusters_until_start = offset / cluster_size_bytes;
+    uint32_t clusters_to_read = (count + cluster_size_bytes - 1)/ cluster_size_bytes;
+#endif
+    api(MODULE_API_PRINT, MODULE_NAME, "File name: %s | First cluster: %x | Clusters until start: %x | Clusters to write: %x\n", open_file->filename, first_cluster, clusters_until_start, clusters_to_write);
+    uint32_t current_cluster = first_cluster;
+    uint32_t last_cluster = 0;
+    // uint32_t free = fat32_get_free_cluster(open_file->mount_index);
+    for(int i = 0; i < clusters_until_start; i++){
+        // api(MODULE_API_PRINT, MODULE_NAME, "Getting cluster: %x\n", free);
+        last_cluster = current_cluster;
+        current_cluster = fat32_get_next_cluster(current_cluster, open_file->mount_index);
+        if(current_cluster >= FAT32_EOC_MIN){
+            spinlock_acquire(&(mount->spinlock));
+            uint32_t new_cluster = fat32_get_free_cluster(open_file->mount_index);
+            if(!new_cluster){
+                api(MODULE_API_PRINT, MODULE_NAME, "Failed to allocate new cluster!\n");
+                spinlock_release(&(mount->spinlock));
+                return 0;
+            }
+            fat32_set_next_cluster(last_cluster, new_cluster, open_file->mount_index);
+            fat32_set_next_cluster(new_cluster, FAT32_EOC, open_file->mount_index);
+            spinlock_release(&(mount->spinlock));
+            //write zeros to the newly allocated cluster;
+            uint32_t *cleared = malloc(api, 1);
+            if(!cleared){
+                return 0;
+            }
+            for(uint32_t j = 0; j < PAGE_SIZE_BYTES / sizeof(uint32_t); j++){
+                cleared[j] = 0;
+            }
+            free(api, cleared);
+            uint64_t cluster_offset_bytes = ((new_cluster - 2) * cluster_size_bytes);
+            uint64_t write_offset = cluster_offset_bytes + mount->data_start_sector * mount->bpb->bytes_per_sector;
+            fwrite(api, mount->mount_src, cleared, write_offset, PAGE_SIZE_BYTES);
+            current_cluster = new_cluster;
+        }
+    }
+    for(uint32_t i = 0; i < clusters_to_write; i++){
+        // api(MODULE_API_PRINT, MODULE_NAME, "Cluster: %x\n", current_cluster);
+        uint64_t cluster_offset_bytes = ((current_cluster - 2) * cluster_size_bytes);
+        uint64_t write_offset = cluster_offset_bytes + mount->data_start_sector * mount->bpb->bytes_per_sector;
+        
+        fwrite(api, mount->mount_src, buffer + i * cluster_size_bytes, write_offset, cluster_size_bytes);
+        
+        last_cluster = current_cluster;
+        current_cluster = fat32_get_next_cluster(current_cluster, open_file->mount_index);
+        if(current_cluster >= FAT32_EOC_MIN){
+            spinlock_acquire(&(mount->spinlock));
+            uint32_t new_cluster = fat32_get_free_cluster(open_file->mount_index);
+            
+            if(!new_cluster){
+                spinlock_release(&(mount->spinlock));
+                api(MODULE_API_PRINT, MODULE_NAME, "Failed to allocate new cluster!\n");
+                return i * cluster_size_bytes;
+            }
+            fat32_set_next_cluster(last_cluster, new_cluster, open_file->mount_index);
+            fat32_set_next_cluster(new_cluster, FAT32_EOC, open_file->mount_index);
+            spinlock_release(&(mount->spinlock));
+            
+            current_cluster = new_cluster;
+        }
+    }
     
+    fat_dirent_t *dirent_sector = malloc(api, (cluster_size_bytes + PAGE_SIZE_BYTES - 1)/PAGE_SIZE_BYTES);
+    api(MODULE_API_PRINT, MODULE_NAME, "Dirent Cluster: %x\n", open_file->dirent_cluster);
+    return count;
 }
 
 int fat32_read(vfile_t *file, void *buffer, uint64_t offset, uint64_t count){
     puts(api, MODULE_NAME, "Read called!\n");
+    fat_open_file_t *open_file = file->private;
+    fat_mount_t *mount = &fat32_mounts[open_file->mount_index];
+    uint32_t first_cluster = open_file->first_cluster;
+    uint32_t cluster_size_bytes = (mount->bpb->bytes_per_sector * mount->bpb->sectors_per_cluster);
+#ifdef __i386__
+    // api(MODULE_API_PRINT, MODULE_NAME, "Test %x\n", udiv64(8, 2));
+    uint32_t clusters_until_start = udiv64(offset, cluster_size_bytes);
+    uint32_t clusters_to_read = udiv64(count + cluster_size_bytes - 1, cluster_size_bytes);
+#else
+    uint32_t clusters_until_start = offset / cluster_size_bytes;
+    uint32_t clusters_to_read = (count + cluster_size_bytes - 1)/ cluster_size_bytes;
+#endif
+    api(MODULE_API_PRINT, MODULE_NAME, "File name: %s | First cluster: %x | Clusters until start: %x | Clusters to read: %x\n", open_file->filename, first_cluster, clusters_until_start, clusters_to_read);
+    uint32_t current_cluster = first_cluster;
+    for(int i = 0; i < clusters_until_start; i++){
+        // api(MODULE_API_PRINT, MODULE_NAME, "Getting cluster: %x\n", )
+        current_cluster = fat32_get_next_cluster(current_cluster, open_file->mount_index);
+        if(current_cluster >= FAT32_EOC_MIN){
+            return 0;
+        }
+    }
+    api(MODULE_API_PRINT, MODULE_NAME, "Starting on cluster: %x\n", current_cluster);
+    for(uint32_t i = 0; i < clusters_to_read; i++){
+        uint64_t cluster_offset_bytes = ((current_cluster - 2) * cluster_size_bytes);
+        uint64_t read_offset = cluster_offset_bytes + mount->data_start_sector * mount->bpb->bytes_per_sector;
+        api(MODULE_API_PRINT, MODULE_NAME, "Reading cluster: %x, offset at %x\n", current_cluster, read_offset);
+        
+        fread(api, mount->mount_src, buffer + i * cluster_size_bytes, read_offset, cluster_size_bytes);
+        
+        current_cluster = fat32_get_next_cluster(current_cluster, open_file->mount_index);
+        if(current_cluster >= FAT32_EOC_MIN){
+            return (i+1) * cluster_size_bytes;
+        }
+    }
+    return count;
 }
 
 void fat32_close(vfile_t *file){

@@ -54,6 +54,7 @@ void remove_process_queue(uint32_t pid){
             process_queue[i] = 0;
         }
     }
+    queue_length--;
     if(old_index == last_queue_index || old_index > queue_length || old_index > PROCESS_COUNT){
         // asm("sti");
         spinlock_release(&proc_lock);
@@ -61,7 +62,6 @@ void remove_process_queue(uint32_t pid){
     }
     process_queue[old_index] = process_queue[last_queue_index];
     process_queue[last_queue_index] = 0;
-    queue_length--;
     if(current_queue_index > 0)
         current_queue_index--;
     spinlock_release(&proc_lock);

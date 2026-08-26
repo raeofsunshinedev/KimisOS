@@ -215,7 +215,7 @@ void idt_load(){
         interrupt_handlers[i] = 0;
     }
     
-    uint32_t hz_ms = pit_init(50000);
+    uint32_t hz_ms = pit_init(1000);
     // asm volatile("lidt (%0)" : : "m"(&idt_desc));
     // outb(0x20, 0x11 );
     // outb(0xa0, 0x11);

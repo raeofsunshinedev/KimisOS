@@ -1,1 +1,1 @@
-Hello! this is a long filename test! Yippee!
+If this is in hellofat.txt then file writing works

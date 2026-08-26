@@ -144,6 +144,27 @@ void *heap_free(void* addr){
     return 0;
 }
 
+uint32_t get_used_memory(){
+    uint32_t count = 0;
+    for(uint32_t i = 0; i < (memory_limit/PAGE_SIZE_BYTES/8); i++){
+        for(int j = 0; j < 8; j++){
+            if((pm_map[i] & (1 << j))){
+                count++;
+            }
+        }
+    }
+    return count;
+}
+uint32_t checksum_pm_map(void)
+{
+    uint32_t sum = 0;
+    
+    for (uint32_t i = 0; i < mmap_count; i++)
+        sum = (sum * 33) ^ pm_map[i];
+    
+    return sum;
+}
+
 uint32_t pm_alloc(){
     // asm("cli");
     spinlock_acquire(&pm_lock);

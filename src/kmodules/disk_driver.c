@@ -234,6 +234,7 @@ inline uint32_t min_u32(uint32_t a, uint32_t b){
 }
 
 int read_disk(vfile_t *file, void *ptr, uint64_t offset, uint64_t count){
+    // api(MODULE_API_PRINT, MODULE_NAME, "Read: %x %x\n", (uint32_t)offset, (uint32_t)count);
     const uint32_t LBA28_READ_BOUNDARY = 0x20000;
     uint32_t read_count = (count + (LBA28_READ_BOUNDARY - 1)) / LBA28_READ_BOUNDARY;
     uint32_t remaining_count = count;
@@ -336,7 +337,7 @@ int ata_write(vfile_t *file, void *ptr, uint64_t offset, uint64_t count){
     // puts(api, MODULE_NAME, "cli\n");
     transferring_disk_index = file->id;
     uint32_t cpid = api(MODULE_API_GET_CPID);
-    // api(MODULE_API_PRINT, MODULE_NAME, "Cpid: %x", cpid);
+    
     api(MODULE_API_BLOCK_PID, cpid);
     transferring_pid = cpid;
     
@@ -351,17 +352,7 @@ int ata_write(vfile_t *file, void *ptr, uint64_t offset, uint64_t count){
         //     puts(api, MODULE_NAME, "Command aborted\n");
         //     return -1;
         // }
-    asm("int $32\n");
-    while(!ata_ready(io_base, ctrl_base, drive.flags.slave << 4)){
-        asm("int $32\n");
-    }
-    outb(io_base + ATA_DRIVE_HEAD, 0x40 | (drive.flags.slave << 4));
-    // api(MODULE_API_PRINT, MODULE_NAME, "Huge? %x\n", drive.flags.huge);
-    outb(io_base + ATA_COMMAND, ATA_CMD_CACHE_FLUSH_EXT);
-    
-    while(!ata_ready(io_base, ctrl_base, drive.flags.slave << 4)){
-        asm("int $32\n");
-    }
+    // asm("int $32\n");
     
     return 0;
 }
@@ -458,7 +449,7 @@ int ata_read(vfile_t *file, uint8_t *ptr, uint64_t offset, uint64_t count) {
     
     return 0;
 }
-
+uint32_t int_count = 0;
 cpu_registers_t *int_handler(cpu_registers_t * regs){
     if(transferring_disk_index == -1){
         return regs;
@@ -473,6 +464,10 @@ cpu_registers_t *int_handler(cpu_registers_t * regs){
     // api(MODULE_API_PRINT, MODULE_NAME, "Interrupt called, %x\n", status);
     
     if(!(status & 0x4)){
+        return regs;
+    }
+    
+    if(status & 0x1){
         return regs;
     }
     
@@ -493,12 +488,12 @@ cpu_registers_t *int_handler(cpu_registers_t * regs){
         
         return regs;
     }
-    
-    //dma is still active
-    if(status & 0x1){
-        return regs;
-    }
-    
+    outb(0x70, 0x80);
+    uint8_t end_s = inb(0x71);
+    outb(0x70, 0x82);
+    uint8_t end_m = inb(0x71);
+    int_count++;
+    api(MODULE_API_PRINT, MODULE_NAME, "End: %d:%d | %x\n", end_m, end_s, int_count);
     transferring_disk_index = -1;
     api(MODULE_API_UNBLOCK_PID, transferring_pid);
     transferring_pid = 0;

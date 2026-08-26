@@ -26,15 +26,15 @@ typedef struct fileops{
 //note: this is EXACTLY 256 bytes. This is for simplicity's sake.
 //PLEASE if you MUST reorganize or add fields, try and keep it to a power of 2?
 typedef struct virtual_file{
-    char name[84];
+    char name[76];
     uint16_t flags;
     fileops_t *fileops;
     uint32_t refcount; //filesystem MUST remain operational until all child refcounts == 0
     
     uint32_t id;//for use in drivers
     void *private; //also for use in drivers
-    uint32_t size; //should be in bytes
-    uint32_t offset; //for use in drivers
+    uint64_t size; //should be in bytes
+    uint64_t offset; //for use in drivers
     
     uint16_t block_size_bytes;
     

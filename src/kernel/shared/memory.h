@@ -91,3 +91,7 @@ void *kfree(void *vaddr);
 void *kmalloc_page_paddr(uint32_t paddr, uint32_t size_pgs);
 
 uint32_t heap_init(uint32_t size_bytes);
+
+uint32_t get_used_memory();
+uint32_t get_free_memory();
+uint32_t checksum_pm_map();
