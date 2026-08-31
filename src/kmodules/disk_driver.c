@@ -282,6 +282,11 @@ int ata_write(vfile_t *file, void *ptr, uint64_t offset, uint64_t count){
     // api(MODULE_API_PRINT, MODULE_NAME, "pages: %x, scount: %x\n", pages, sector_count);
     if (sector_count == 0) return -1;
     // api(MODULE_API_PRINT, MODULE_NAME, "Pages: %x\n", pages);
+    /*
+    !fixme:
+    PRDT entries do not have to be page-aligned. The only restriction
+    is that they cannot cross 64k boundaries.
+    */
     for (uint32_t i = 0; i < pages; i++) {
         prdt[i].address = api(MODULE_API_PADDR, ptr + (i << 12));
         // api(MODULE_API_PRINT, MODULE_NAME, "ADDR: %x, Count: %x", ptr + (i << 12), api(MODULE_API_PADDR, prdt));
