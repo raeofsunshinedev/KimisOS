@@ -21,6 +21,7 @@ kernel_info_t *boot_info = 0;
 void pid0(){
     for(;;);
 }
+
 void sysinit(){
     mlog("KERNEL", "PID 1 Started\n", MLOG_PRINT);
     pci_init();

@@ -77,7 +77,11 @@ cpu_registers_t *schedule(cpu_registers_t *regs){
     if(current_queue_index >= queue_length){
         current_queue_index = 0;
     }
-    current_pid = process_queue[current_queue_index];
+    current_pid = process_queue[current_queue_index % queue_length];
+    //if the queue length is more than one, do not run the idle process.
+    if(queue_length > 1 && current_pid == 0){
+        current_pid = process_queue[++current_queue_index % queue_length];
+    }
     asm volatile("mov %0, %%cr3" : : "r"(processes[current_pid].page_dir));
     cpu_registers_t *newregs = (cpu_registers_t*)processes[current_pid].cpuregs.esp;
     return newregs;

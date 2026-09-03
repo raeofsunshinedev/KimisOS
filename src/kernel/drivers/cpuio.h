@@ -30,3 +30,14 @@ inline uint32_t inl(uint16_t port){
     asm volatile ("inl %1, %0" : "=a"(byte) : "Nd"(port));
     return byte;
 }
+
+uint32_t __rdtsc(){
+    unsigned int lo, hi;
+    
+    __asm__ volatile (
+        "rdtsc"
+        : "=a"(lo), "=d"(hi)
+    );
+    
+    return lo;
+}

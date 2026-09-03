@@ -1,6 +1,12 @@
 #pragma once
 #include <stdint.h>
 
+#ifdef __i386__ 
+typedef uint32_t size_t;
+#elifdef __x86_64__
+typedef uint64_t size_t;
+#endif
+
 void itoa(int64_t data, char *res, uint8_t base);
 void strpad(char *string, char padding, uint32_t length);
 //str cannot be null
@@ -50,4 +56,10 @@ inline int memcmp(char *ptr1, char *ptr2, uint32_t size){
         return ptr1[i] - ptr2[i];
     }
     return 0;
+}
+inline void *memset(void *ptr, int value, size_t num){
+    for(size_t i = 0; i < num; i++){
+        ((uint8_t *)ptr)[i] = value;
+    }
+    return ptr;
 }

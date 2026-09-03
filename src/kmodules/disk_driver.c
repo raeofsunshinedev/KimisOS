@@ -362,8 +362,13 @@ int ata_write(vfile_t *file, void *ptr, uint64_t offset, uint64_t count){
     return 0;
 }
 
+uint32_t int_tsc = 0;
+
 int ata_read(vfile_t *file, uint8_t *ptr, uint64_t offset, uint64_t count) {
     if (count == 0) return -1;
+    
+    uint32_t start_tsc = __rdtsc();
+    
     drive_t drive = drives[file->id];
     uint16_t io_base = drive.BARs[0] &0xfffe;
     uint16_t ctrl_base = drive.BARs[1] &0xfffe;
@@ -450,7 +455,11 @@ int ata_read(vfile_t *file, uint8_t *ptr, uint64_t offset, uint64_t count) {
     //     puts(api, MODULE_NAME, "Command aborted\n");
     //     return -1;
     // }
+    uint32_t mid_tsc = __rdtsc();
     asm("int $32\n");
+    uint32_t end_tsc = __rdtsc();
+    
+    api(MODULE_API_PRINT, MODULE_NAME, "%x, %x, %x, %x\n", start_tsc, mid_tsc, int_tsc, end_tsc);
     
     return 0;
 }
@@ -502,7 +511,7 @@ cpu_registers_t *int_handler(cpu_registers_t * regs){
     api(MODULE_API_UNBLOCK_PID, transferring_pid);
     transferring_pid = 0;
     primary_ata_locked = 0;
-    
+    int_tsc = __rdtsc();
     return regs;
 }
 

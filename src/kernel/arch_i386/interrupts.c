@@ -1,4 +1,5 @@
 #include "../shared/interrupts.h"
+#include "../system/scheduler.h"
 #include "../drivers/serial.h"
 #include "../drivers/cpuio.h"
 #include <stdint.h>
@@ -75,18 +76,23 @@ inline void set_idt_entry(uint32_t index, void *ptr, uint8_t flags, uint16_t seg
 cpu_registers_t *_irq_handler(cpu_registers_t *regs){
     in_interrupt = 1;
     regs->esp = (uint32_t)regs;
-    if(regs->int_no == 0x80){
+    uint32_t int_no = regs->int_no;
+    if(int_no == 0x80){
         regs = syscall(regs);
     }
-    else if(interrupt_handlers[regs->int_no - 32])
+    else if(interrupt_handlers[int_no - 32])
     {
         // printf("found one for an int");
-        regs = interrupt_handlers[regs->int_no - 32](regs);
+        regs = interrupt_handlers[int_no - 32](regs);
+        
+        if(int_no > 32 && interrupt_handlers[0]){
+            regs = interrupt_handlers[0](regs);
+        }
         // printf("returned;")
         // printf("eip: %x", regs->eip);
     }
     outb(0x20, 0x20);
-    if(regs->int_no >= 0x28){
+    if(int_no >= 0x28){
         outb(0xa0, 0x20);
     }
     in_interrupt = 0;
