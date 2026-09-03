@@ -57,9 +57,4 @@ inline int memcmp(char *ptr1, char *ptr2, uint32_t size){
     }
     return 0;
 }
-inline void *memset(void *ptr, int value, size_t num){
-    for(size_t i = 0; i < num; i++){
-        ((uint8_t *)ptr)[i] = value;
-    }
-    return ptr;
-}
+void *memset(void *ptr, int value, size_t count);

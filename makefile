@@ -50,7 +50,7 @@ kernel:
 	nasm src/kernel/arch_i386/idt.s -o bin/kernel/idt.o -felf32
 	# ld -T linker.ld bin/kernel/entry.o bin/kernel/*.o -melf_i386
 	ld -T linker.ld bin/kernel/*.o -melf_i386 -o kernel.elf -static
-	ld -T linker.ld -o kernel_interface.elf -r -R kernel.elf -melf_i386
+# 	ld -T linker.ld -o kernel_interface.elf -r -R kernel.elf -melf_i386
 	ld -pie bin/modules/disk_driver.o bin/kernel/string.o -o idm.elf -melf_i386 -e init --no-dynamic-linker -static -nostdlib
 # 	ld bin/modules/fs_driver.o -o ifsm.elf -melf_i386
 	ld -pie bin/modules/fs_driver.o bin/kernel/string.o -o ifsm.elf -melf_i386 -e init --no-dynamic-linker -static -nostdlib

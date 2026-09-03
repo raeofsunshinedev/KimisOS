@@ -88,3 +88,10 @@ char* strtok(char* string, char d)
     
     return res;
 }
+
+void *memset(void *ptr, int value, size_t num){
+    for(size_t i = 0; i < num; i++){
+        ((uint8_t *)ptr)[i] = value;
+    }
+    return ptr;
+}

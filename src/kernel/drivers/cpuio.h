@@ -31,7 +31,7 @@ inline uint32_t inl(uint16_t port){
     return byte;
 }
 
-uint32_t __rdtsc(){
+inline uint32_t __rdtsc(){
     unsigned int lo, hi;
     
     __asm__ volatile (
