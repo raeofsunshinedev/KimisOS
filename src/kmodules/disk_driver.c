@@ -236,28 +236,50 @@ inline uint32_t min_u32(uint32_t a, uint32_t b){
 int read_disk(vfile_t *file, void *ptr, uint64_t offset, uint64_t count){
     // api(MODULE_API_PRINT, MODULE_NAME, "Read: %x %x\n", (uint32_t)offset, (uint32_t)count);
     const uint32_t LBA28_READ_BOUNDARY = 0x20000;
-    uint32_t read_count = (count + (LBA28_READ_BOUNDARY - 1)) / LBA28_READ_BOUNDARY;
+    const uint32_t LBA48_READ_BOUNDARY = 0x2000000;
     uint32_t remaining_count = count;
     if(count == 0) return 0;
-    for(uint32_t i = 0; i < read_count; i++){
-        uint32_t to_read = (remaining_count % LBA28_READ_BOUNDARY);
-        if(to_read == 0) to_read = LBA28_READ_BOUNDARY;
-        remaining_count -= to_read;
-        ata_read(file, ptr + LBA28_READ_BOUNDARY * i, offset + LBA28_READ_BOUNDARY * i, to_read);
+    if(drives[file->id].flags.huge){
+        uint32_t read_count = (count + (LBA48_READ_BOUNDARY - 1)) / LBA48_READ_BOUNDARY;
+        for(uint32_t i = 0; i < read_count; i++){
+            uint32_t to_read = (remaining_count % LBA48_READ_BOUNDARY);
+            if(to_read == 0) to_read = LBA48_READ_BOUNDARY;
+            remaining_count -= to_read;
+            ata_read(file, ptr + LBA48_READ_BOUNDARY * i, offset + LBA48_READ_BOUNDARY * i, to_read);
+        }
+    }else{
+        uint32_t read_count = (count + (LBA28_READ_BOUNDARY - 1)) / LBA28_READ_BOUNDARY;
+        for(uint32_t i = 0; i < read_count; i++){
+            uint32_t to_read = (remaining_count % LBA28_READ_BOUNDARY);
+            if(to_read == 0) to_read = LBA28_READ_BOUNDARY;
+            remaining_count -= to_read;
+            ata_read(file, ptr + LBA28_READ_BOUNDARY * i, offset + LBA28_READ_BOUNDARY * i, to_read);
+        }
     }
     return count;
 }
 
 int write_disk(vfile_t *file, void *ptr, uint64_t offset, uint64_t count){
-    const uint32_t LBA28_WRITE_BOUNDARY = 0x20000;
-    uint32_t write_count = (count + (LBA28_WRITE_BOUNDARY - 1)) / LBA28_WRITE_BOUNDARY;
+     const uint32_t LBA28_WRITE_BOUNDARY = 0x20000;
+    const uint32_t LBA48_WRITE_BOUNDARY = 0x2000000;
     uint32_t remaining_count = count;
     if(count == 0) return 0;
-    for(uint32_t i = 0; i < write_count; i++){
-        uint32_t to_write = (remaining_count % LBA28_WRITE_BOUNDARY);
-        if(to_write == 0) to_write = LBA28_WRITE_BOUNDARY;
-        remaining_count -= to_write;
-        ata_write(file, ptr + LBA28_WRITE_BOUNDARY * i, offset + LBA28_WRITE_BOUNDARY * i, to_write);
+    if(drives[file->id].flags.huge){
+        uint32_t write_count = (count + (LBA48_WRITE_BOUNDARY - 1)) / LBA48_WRITE_BOUNDARY;
+        for(uint32_t i = 0; i < write_count; i++){
+            uint32_t to_write = (remaining_count % LBA48_WRITE_BOUNDARY);
+            if(to_write == 0) to_write = LBA48_WRITE_BOUNDARY;
+            remaining_count -= to_write;
+            ata_write(file, ptr + LBA48_WRITE_BOUNDARY * i, offset + LBA48_WRITE_BOUNDARY * i, to_write);
+        }
+    }else{
+        uint32_t write_count = (count + (LBA28_WRITE_BOUNDARY - 1)) / LBA28_WRITE_BOUNDARY;
+        for(uint32_t i = 0; i < write_count; i++){
+            uint32_t to_write = (remaining_count % LBA28_WRITE_BOUNDARY);
+            if(to_write == 0) to_write = LBA28_WRITE_BOUNDARY;
+            remaining_count -= to_write;
+            ata_write(file, ptr + LBA28_WRITE_BOUNDARY * i, offset + LBA28_WRITE_BOUNDARY * i, to_write);
+        }
     }
     return count;
 }
@@ -281,22 +303,51 @@ int ata_write(vfile_t *file, void *ptr, uint64_t offset, uint64_t count){
     uint32_t sector_count = pages*8;
     // api(MODULE_API_PRINT, MODULE_NAME, "pages: %x, scount: %x\n", pages, sector_count);
     if (sector_count == 0) return -1;
-    // api(MODULE_API_PRINT, MODULE_NAME, "Pages: %x\n", pages);
-    /*
-    !fixme:
-    PRDT entries do not have to be page-aligned. The only restriction
-    is that they cannot cross 64k boundaries.
-    */
-    for (uint32_t i = 0; i < pages; i++) {
-        prdt[i].address = api(MODULE_API_PADDR, ptr + (i << 12));
+        
+    uint32_t prdt_count = 0;
+    uint32_t boundary_page = 0;
+    for (uint32_t i = 0; i < pages;) {
+        //adjust for consecutive pages
+        uint32_t paddr_offset = (uintptr_t)ptr & 0xfff;
+        uintptr_t paddr = api(MODULE_API_PADDR, ptr + (i << 12));
+        uint32_t ccount = 0;
+        while((i + ccount) < pages && api(MODULE_API_PADDR, ptr + ((i + ccount) << 12)) == paddr + (ccount * PAGE_SIZE_BYTES) && ccount < 16){
+            uintptr_t next_paddr = api(MODULE_API_PADDR, ptr + ((i + ccount + 1) << 12)) + paddr_offset;
+            ccount++;
+            if((next_paddr & 0xffff) + PAGE_SIZE_BYTES >= 0x10000){
+                // puts(api, MODULE_NAME, "Crosses 64k boundary!\n");
+                boundary_page = ccount;
+            }
+            // api(MODULE_API_PRINT, MODULE_NAME, "Addr: %x\n", paddr + ((ccount + i) << 12));
+        }
+        
+        
+        prdt[prdt_count].address = api(MODULE_API_PADDR, ptr + (i << 12)) + paddr_offset;
+        // api(MODULE_API_PRINT, MODULE_NAME, "Accrued consecutives: %x | Starting at: %x\n", ccount, prdt[prdt_count].address);
+        uintptr_t new_paddr = api(MODULE_API_PADDR, ptr + ((i + ccount - 1) << 12));
+        if(((new_paddr + paddr_offset)& 0xffff) + PAGE_SIZE_BYTES >= 0x10000 || boundary_page){
+            uint32_t prd_offset = (paddr & 0xffff) + paddr_offset;
+            uint32_t bytes_to_boundary = 0x10000 - prd_offset;
+            uint32_t second_count = (ccount * PAGE_SIZE_BYTES) - bytes_to_boundary;
+            // api(MODULE_API_PRINT, MODULE_NAME, "Bytes to boundary: %x | prd_offset: %x | Second count: %x | Total: %x\n", bytes_to_boundary, prd_offset, second_count, ccount * PAGE_SIZE_BYTES);
+            prdt[prdt_count].byte_count = bytes_to_boundary;
+            prdt[prdt_count].reserved = 0;
+            prdt_count++;
+            prdt[prdt_count].address = paddr + paddr_offset + bytes_to_boundary; 
+            prdt[prdt_count].byte_count = second_count;
+            // api(MODULE_API_PRINT, MODULE_NAME, "Entry 2:Starting at: %x | Count: %x\n", prdt[prdt_count].address, prdt[prdt_count].byte_count);
+        }
+        else{
+            prdt[prdt_count].byte_count = PAGE_SIZE_BYTES * ccount;
+        }
         // api(MODULE_API_PRINT, MODULE_NAME, "ADDR: %x, Count: %x", ptr + (i << 12), api(MODULE_API_PADDR, prdt));
-        prdt[i].byte_count = 4096;
-        // api(MODULE_API_PRINT, MODULE_NAME, "ADDR: %x, Count: %x\n", prdt[i].address, prdt[i].byte_count);
-        prdt[i].reserved = 0;
-        if(i == pages - 1){
-            prdt[i].reserved = 0x8000;
+        prdt[prdt_count].reserved = 0;
+        i += (ccount);
+        if(i >= pages - 1){
+            prdt[prdt_count].reserved = 0x8000;
             // api(MODULE_API_PRINT, MODULE_NAME, "Reserved: %x\n", prdt[i].reserved);
         }
+        prdt_count++;
     }
     outb(ctrl_base, 0x00);
     outb(bm_base + 2, 0x06);
@@ -385,18 +436,52 @@ int ata_read(vfile_t *file, uint8_t *ptr, uint64_t offset, uint64_t count) {
     uint32_t sector_count = pages*8;
     // api(MODULE_API_PRINT, MODULE_NAME, "pages: %x, scount: %x\n", pages, sector_count);
     if (sector_count == 0) return -1;
-    for (uint32_t i = 0; i < pages; i++) {
-        prdt[i].address = api(MODULE_API_PADDR, ptr + (i << 12));
+    
+    uint32_t prdt_count = 0;
+    uint32_t boundary_page = 0;
+    for (uint32_t i = 0; i < pages;) {
+        //adjust for consecutive pages
+        uint32_t paddr_offset = (uintptr_t)ptr & 0xfff;
+        uintptr_t paddr = api(MODULE_API_PADDR, ptr + (i << 12));
+        uint32_t ccount = 0;
+        while((i + ccount) < pages && api(MODULE_API_PADDR, ptr + ((i + ccount) << 12)) == paddr + (ccount * PAGE_SIZE_BYTES) && ccount < 16){
+            uintptr_t next_paddr = api(MODULE_API_PADDR, ptr + ((i + ccount + 1) << 12)) + paddr_offset;
+            ccount++;
+            if((next_paddr & 0xffff) + PAGE_SIZE_BYTES >= 0x10000){
+                // puts(api, MODULE_NAME, "Crosses 64k boundary!\n");
+                boundary_page = ccount;
+            }
+            // api(MODULE_API_PRINT, MODULE_NAME, "Addr: %x\n", paddr + ((ccount + i) << 12));
+        }
+        
+        
+        prdt[prdt_count].address = api(MODULE_API_PADDR, ptr + (i << 12)) + paddr_offset;
+        // api(MODULE_API_PRINT, MODULE_NAME, "Accrued consecutives: %x | Starting at: %x\n", ccount, prdt[prdt_count].address);
+        uintptr_t new_paddr = api(MODULE_API_PADDR, ptr + ((i + ccount - 1) << 12));
+        if(((new_paddr + paddr_offset)& 0xffff) + PAGE_SIZE_BYTES >= 0x10000 || boundary_page){
+            uint32_t prd_offset = (paddr & 0xffff) + paddr_offset;
+            uint32_t bytes_to_boundary = 0x10000 - prd_offset;
+            uint32_t second_count = (ccount * PAGE_SIZE_BYTES) - bytes_to_boundary;
+            // api(MODULE_API_PRINT, MODULE_NAME, "Bytes to boundary: %x | prd_offset: %x | Second count: %x | Total: %x\n", bytes_to_boundary, prd_offset, second_count, ccount * PAGE_SIZE_BYTES);
+            prdt[prdt_count].byte_count = bytes_to_boundary;
+            prdt[prdt_count].reserved = 0;
+            prdt_count++;
+            prdt[prdt_count].address = paddr + paddr_offset + bytes_to_boundary; 
+            prdt[prdt_count].byte_count = second_count;
+            // api(MODULE_API_PRINT, MODULE_NAME, "Entry 2:Starting at: %x | Count: %x\n", prdt[prdt_count].address, prdt[prdt_count].byte_count);
+        }
+        else{
+            prdt[prdt_count].byte_count = PAGE_SIZE_BYTES * ccount;
+        }
         // api(MODULE_API_PRINT, MODULE_NAME, "ADDR: %x, Count: %x", ptr + (i << 12), api(MODULE_API_PADDR, prdt));
-        prdt[i].byte_count = 4096;
-        // api(MODULE_API_PRINT, MODULE_NAME, "ADDR: %x, Count: %x\n", prdt[i].address, prdt[i].byte_count);
-        prdt[i].reserved = 0;
-        if(i == pages - 1){
-            prdt[i].reserved = 0x8000;
+        prdt[prdt_count].reserved = 0;
+        i += (ccount);
+        if(i >= pages - 1){
+            prdt[prdt_count].reserved = 0x8000;
             // api(MODULE_API_PRINT, MODULE_NAME, "Reserved: %x\n", prdt[i].reserved);
         }
+        prdt_count++;
     }
-    
     outb(ctrl_base, 0x00);
     outb(bm_base + 2, 0x06);
     outl(bm_base + 4, api(MODULE_API_PADDR, prdt));
@@ -459,7 +544,7 @@ int ata_read(vfile_t *file, uint8_t *ptr, uint64_t offset, uint64_t count) {
     asm("int $32\n");
     uint32_t end_tsc = __rdtsc();
     
-    api(MODULE_API_PRINT, MODULE_NAME, "%x, %x, %x, %x\n", start_tsc, mid_tsc, int_tsc, end_tsc);
+    // api(MODULE_API_PRINT, MODULE_NAME, "%x, %x, %x, %x\n", start_tsc, mid_tsc, int_tsc, end_tsc);
     
     return 0;
 }
