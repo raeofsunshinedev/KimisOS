@@ -237,8 +237,23 @@ int read_disk(vfile_t *file, void *ptr, uint64_t offset, uint64_t count){
     // api(MODULE_API_PRINT, MODULE_NAME, "Read: %x %x\n", (uint32_t)offset, (uint32_t)count);
     const uint32_t LBA28_READ_BOUNDARY = 0x20000;
     const uint32_t LBA48_READ_BOUNDARY = 0x2000000;
+    const uint32_t SECTOR_SZ = 0x200;
     uint32_t remaining_count = count;
     if(count == 0) return 0;
+    if(offset & 0x1ff){
+        uint32_t aligned_offset = offset & ~0x1ff;
+        
+        uint8_t *bounce = malloc(api, 1);
+        
+        ata_read(file, bounce, aligned_offset, SECTOR_SZ);
+        memcpy(bounce + (offset & 0x1ff), ptr, min_u32(count, SECTOR_SZ - offset));
+        free(api, bounce);
+        if(count <= (SECTOR_SZ - offset)){
+            return count;
+        }
+        ptr += SECTOR_SZ - offset;
+        offset += SECTOR_SZ - offset;
+    }
     if(drives[file->id].flags.huge){
         uint32_t read_count = (count + (LBA48_READ_BOUNDARY - 1)) / LBA48_READ_BOUNDARY;
         for(uint32_t i = 0; i < read_count; i++){
@@ -260,10 +275,13 @@ int read_disk(vfile_t *file, void *ptr, uint64_t offset, uint64_t count){
 }
 
 int write_disk(vfile_t *file, void *ptr, uint64_t offset, uint64_t count){
-     const uint32_t LBA28_WRITE_BOUNDARY = 0x20000;
+    const uint32_t LBA28_WRITE_BOUNDARY = 0x20000;
     const uint32_t LBA48_WRITE_BOUNDARY = 0x2000000;
     uint32_t remaining_count = count;
     if(count == 0) return 0;
+    if(offset & 0x1ff){
+        puts(api, MODULE_NAME, "Needs to get split\n");
+    }
     if(drives[file->id].flags.huge){
         uint32_t write_count = (count + (LBA48_WRITE_BOUNDARY - 1)) / LBA48_WRITE_BOUNDARY;
         for(uint32_t i = 0; i < write_count; i++){
@@ -280,6 +298,9 @@ int write_disk(vfile_t *file, void *ptr, uint64_t offset, uint64_t count){
             remaining_count -= to_write;
             ata_write(file, ptr + LBA28_WRITE_BOUNDARY * i, offset + LBA28_WRITE_BOUNDARY * i, to_write);
         }
+    }
+    if(count & 0xfff){
+        puts(api, MODULE_NAME, "Needs to get split for count\n");
     }
     return count;
 }
