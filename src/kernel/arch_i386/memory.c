@@ -89,7 +89,7 @@ uint32_t heap_init(uint32_t size_bytes){
     // heap_1 = get_heap_index(1);
     // printf("Test1: %x, %x\n", heap_0, heap_1);
     // printf("Test2: %x, %x\n", heap_index_to_address(0), heap_address_to_index(heap_index_to_address(2)));
-    
+    return 0;
 }
 
 void *heap_alloc(uint32_t size_pgs){
@@ -259,7 +259,7 @@ int pm_init(kernel_info_t *kernel_info){
             }
             if(mmap[i].type != BIOS_MMAP_USABLE){
                 total_memory_unusable++;
-                pm_map[(mmap[i].entry_base >> 15) + (j >> 3)] |= 1 << (j & 7) + ((mmap[i].entry_base >> 12) & 7);
+                pm_map[(mmap[i].entry_base >> 15) + (j >> 3)] |= 1 << ((j & 7) + ((mmap[i].entry_base >> 12) & 7));
             }
             else{
                 pm_map[(mmap[i].entry_base >> 15) + (j >> 3)] &= ~(1 << ((j & 7) + ((mmap[i].entry_base >> 12) & 7)));
@@ -282,6 +282,7 @@ int pm_init(kernel_info_t *kernel_info){
         pm_reserve(get_paddr(kernel_addr));
         kernel_addr += 0x1000;
     }
+    return 0;
 }
 void map(void *vaddr, void *paddr, uint32_t flags){
     // asm("cli");

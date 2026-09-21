@@ -234,11 +234,11 @@ inline uint32_t min_u32(uint32_t a, uint32_t b){
 }
 
 int read_disk(vfile_t *file, void *ptr, uint64_t offset, uint64_t count){
-    // api(MODULE_API_PRINT, MODULE_NAME, "Read: %x %x\n", (uint32_t)offset, (uint32_t)count);
+    api(MODULE_API_PRINT, MODULE_NAME, "Read: %x %x\n", (uint32_t)offset, (uint32_t)count);
     const uint32_t LBA28_READ_BOUNDARY = 0x20000;
     const uint32_t LBA48_READ_BOUNDARY = 0x2000000;
     const uint32_t SECTOR_SZ = 0x200;
-    uint32_t remaining_count = count;
+    size_t remaining_count = count;
     if(count == 0) return 0;
     if(offset & 0x1ff){
         uint32_t aligned_offset = offset & ~0x1ff;
@@ -249,28 +249,38 @@ int read_disk(vfile_t *file, void *ptr, uint64_t offset, uint64_t count){
         memcpy(bounce + (offset & 0x1ff), ptr, min_u32(count, SECTOR_SZ - offset));
         free(api, bounce);
         if(count <= (SECTOR_SZ - offset)){
+            puts(api, MODULE_NAME, "Returning early, no more to read!\n");
             return count;
         }
         ptr += SECTOR_SZ - offset;
         offset += SECTOR_SZ - offset;
     }
-    if(drives[file->id].flags.huge){
-        uint32_t read_count = (count + (LBA48_READ_BOUNDARY - 1)) / LBA48_READ_BOUNDARY;
-        for(uint32_t i = 0; i < read_count; i++){
-            uint32_t to_read = (remaining_count % LBA48_READ_BOUNDARY);
-            if(to_read == 0) to_read = LBA48_READ_BOUNDARY;
-            remaining_count -= to_read;
-            ata_read(file, ptr + LBA48_READ_BOUNDARY * i, offset + LBA48_READ_BOUNDARY * i, to_read);
+    
+    uint32_t max_read_size = drives[file->id].flags.huge ? LBA48_READ_BOUNDARY : LBA28_READ_BOUNDARY;
+    
+    while(remaining_count > 0){
+        size_t to_read = min_u32(max_read_size, remaining_count);
+        if(to_read & (PAGE_SIZE_BYTES - 1) && to_read > PAGE_SIZE_BYTES){
+            api(MODULE_API_PRINT, MODULE_NAME, "Less than a page!\n");
+            to_read -= (to_read & (PAGE_SIZE_BYTES - 1));
         }
-    }else{
-        uint32_t read_count = (count + (LBA28_READ_BOUNDARY - 1)) / LBA28_READ_BOUNDARY;
-        for(uint32_t i = 0; i < read_count; i++){
-            uint32_t to_read = (remaining_count % LBA28_READ_BOUNDARY);
-            if(to_read == 0) to_read = LBA28_READ_BOUNDARY;
-            remaining_count -= to_read;
-            ata_read(file, ptr + LBA28_READ_BOUNDARY * i, offset + LBA28_READ_BOUNDARY * i, to_read);
+        if(to_read < PAGE_SIZE_BYTES){
+            uint8_t *bounce = malloc(api, 1);
+            ata_read(file, bounce, offset + (count - remaining_count), PAGE_SIZE_BYTES);
+            api(MODULE_API_PRINT, MODULE_NAME, "count %x, total %x\n", count - remaining_count, to_read);
+            for(uint32_t i = 0; i < to_read; i++){
+                ((uint8_t *)ptr)[count-remaining_count + i] = bounce[i];
+            }
+            free(api, bounce);
+        }else{
+            ata_read(file, ((uint8_t *)ptr) + (count - remaining_count), offset + (count - remaining_count), to_read);
         }
+        api(MODULE_API_PRINT, MODULE_NAME, "To read %x, Remaining: %x\n", to_read, remaining_count);
+        remaining_count -= to_read;
     }
+    
+    api(MODULE_API_PRINT, MODULE_NAME, "End\n");
+    
     return count;
 }
 

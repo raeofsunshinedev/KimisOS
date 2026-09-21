@@ -23,7 +23,7 @@ uint32_t module_api(uint32_t func, ...){
                 return_value =  -1;
             }
             uint32_t tmp = pm_alloc();
-            (structure->key) = (modules->size ^ 190507) + tmp << 12 ^ 4405648937 ^ 8592807313 >> 5;
+            (structure->key) = (modules->size ^ 190507) + (tmp << 12 ^ 4405648937 ^ 8592807313 >> 5);
             structure->key &= (0xffffff00 | modules->size);
             vector_push(modules, structure);
             pm_free(tmp);

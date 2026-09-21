@@ -16,7 +16,7 @@ fileops_t ramfs_ops =
     ramfs_rfopen,
 };
 
-vfile_t root_dir = {"/", FS_FILE_IS_DIR | FS_FILE_SYSTEM, &ramfs_ops};
+vfile_t root_dir = {"/", FS_FILE_IS_DIR | FS_FILE_SYSTEM, &ramfs_ops, 0};
 
 void ramfs_init(){
     mlog(MODULE_NAME, "Initializing VFS\n", MLOG_PRINT);
@@ -128,7 +128,7 @@ vfile_t *ramfs_create(vfile_t *root, char *path, FS_FILE_FLAGS flags){
     if(path[0] == '/') path++;
     // vfile_t *parent = resolve_path(path, root, false);
     vfile_t *parent = root;
-    if(!parent || !parent->flags & FS_FILE_IS_DIR){
+    if(!parent || !(parent->flags & FS_FILE_IS_DIR)){
         mlog(MODULE_NAME, "Could not locate parent directory for %s\n", MLOG_PRINT, path);
         path--;
         return 0;
@@ -201,7 +201,6 @@ int ramfs_read(vfile_t *file, char *buffer, uint64_t offset, uint64_t count){
 // }
 void ramfs_close(vfile_t *file){
     file->refcount--;
-    if(file->refcount < 0) file->refcount = 0;
     return;
 }
 vfile_t *ramfs_rfopen(char *name, vfile_t *parent){
