@@ -86,6 +86,7 @@ int fwrite(vfile_t *file_entry, void *byte_array, uint64_t offset, uint64_t coun
 
 int fread(vfile_t *file_entry, void *byte_array, uint64_t offset, uint64_t count){
     if(!file_entry || !file_entry->fileops || !file_entry->fileops->read || !byte_array || count == 0){
+        printf("fentry: %x, fileops: %x, fread: %x, buffer: %x\n", file_entry, 0, 0, byte_array);
         return 0;
     }
     return file_entry->fileops->read(file_entry, byte_array, offset, count);

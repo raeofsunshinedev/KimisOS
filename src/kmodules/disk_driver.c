@@ -234,7 +234,10 @@ inline uint32_t min_u32(uint32_t a, uint32_t b){
 }
 
 int read_disk(vfile_t *file, void *ptr, uint64_t offset, uint64_t count){
-    api(MODULE_API_PRINT, MODULE_NAME, "Read: %x %x\n", (uint32_t)offset, (uint32_t)count);
+    if(!file || !ptr){
+        return 0;
+    }
+    // api(MODULE_API_PRINT, MODULE_NAME, "Read: %x %x\n", (uint32_t)offset, (uint32_t)count);
     const uint32_t LBA28_READ_BOUNDARY = 0x20000;
     const uint32_t LBA48_READ_BOUNDARY = 0x2000000;
     const uint32_t SECTOR_SZ = 0x200;
@@ -244,12 +247,13 @@ int read_disk(vfile_t *file, void *ptr, uint64_t offset, uint64_t count){
         uint32_t aligned_offset = offset & ~0x1ff;
         
         uint8_t *bounce = malloc(api, 1);
+        // puts(api, MODULE_NAME, "Unaligned offset. Aligning\n");
         
         ata_read(file, bounce, aligned_offset, SECTOR_SZ);
         memcpy(bounce + (offset & 0x1ff), ptr, min_u32(count, SECTOR_SZ - offset));
         free(api, bounce);
         if(count <= (SECTOR_SZ - offset)){
-            puts(api, MODULE_NAME, "Returning early, no more to read!\n");
+            // puts(api, MODULE_NAME, "Returning early, no more to read!\n");
             return count;
         }
         ptr += SECTOR_SZ - offset;
@@ -257,7 +261,7 @@ int read_disk(vfile_t *file, void *ptr, uint64_t offset, uint64_t count){
     }
     
     uint32_t max_read_size = drives[file->id].flags.huge ? LBA48_READ_BOUNDARY : LBA28_READ_BOUNDARY;
-    
+    // api(MODULE_API_PRINT, MODULE_NAME, "Reading from drive: %d\n", file->id);
     while(remaining_count > 0){
         size_t to_read = min_u32(max_read_size, remaining_count);
         if(to_read & (PAGE_SIZE_BYTES - 1) && to_read > PAGE_SIZE_BYTES){
@@ -267,19 +271,21 @@ int read_disk(vfile_t *file, void *ptr, uint64_t offset, uint64_t count){
         if(to_read < PAGE_SIZE_BYTES){
             uint8_t *bounce = malloc(api, 1);
             ata_read(file, bounce, offset + (count - remaining_count), PAGE_SIZE_BYTES);
-            api(MODULE_API_PRINT, MODULE_NAME, "count %x, total %x\n", count - remaining_count, to_read);
+            // api(MODULE_API_PRINT, MODULE_NAME, "count %x, total %x\n", count - remaining_count, to_read);
             for(uint32_t i = 0; i < to_read; i++){
                 ((uint8_t *)ptr)[count-remaining_count + i] = bounce[i];
             }
             free(api, bounce);
         }else{
+            // api(MODULE_API_PRINT, MODULE_NAME, "ATA Reading (Pre)| File: %x, Ptr: %x, Offset: %x, Count: %x\n", file, ptr + (count - remaining_count), (uint32_t)(offset + count - remaining_count), to_read);
             ata_read(file, ((uint8_t *)ptr) + (count - remaining_count), offset + (count - remaining_count), to_read);
+            // puts(api, MODULE_NAME, "ATA Reading (Post)\n");
         }
-        api(MODULE_API_PRINT, MODULE_NAME, "To read %x, Remaining: %x\n", to_read, remaining_count);
+        // api(MODULE_API_PRINT, MODULE_NAME, "To read %x, Remaining: %x\n", to_read, remaining_count);
         remaining_count -= to_read;
     }
     
-    api(MODULE_API_PRINT, MODULE_NAME, "End\n");
+    // api(MODULE_API_PRINT, MODULE_NAME, "End\n");
     
     return count;
 }
@@ -598,7 +604,13 @@ cpu_registers_t *int_handler(cpu_registers_t * regs){
     }
     
     if(status & 0x1){
-        return regs;
+        //seems to be causing issues (I suspect with the PRDT.)
+        //Removing this seems to work. Tested on a total read size of 0x10000 (64 KiB)
+        //IF there is any weird drive behavior, check here.
+        //
+        //Fair warning, once I have a SATA and or NVME driver, i will probably stop maintaining this unless it is *critical* to users.
+        //Fortunately, however, I am the only user.
+        // return regs;
     }
     
     //stop dma
