@@ -66,7 +66,7 @@ typedef struct fat_mount_s{
         uint8_t fs_info_dirty:1;
     } flags;
     
-    spinlock_t *spinlock;
+    spinlock_t spinlock;
     
     uint32_t last_free_cluster_count;
     uint32_t fat_search_start;
@@ -80,14 +80,14 @@ typedef struct fat_mount_s{
 } __attribute__((aligned(64))) fat_mount_t;
 
 typedef struct fat_open_file_s{
-    char filename[100];
+    char filename[96];
     
     uint32_t refcount;
     
     uint32_t mount_index;
     uint32_t first_cluster;
     uint32_t size_clusters;
-    
+    uint32_t size_bytes;
     uint32_t file_flags;
     
     //first cluster of dirent;

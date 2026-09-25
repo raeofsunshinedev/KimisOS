@@ -187,7 +187,7 @@ uint32_t fat32_build_filename_long(uint32_t start_index, char *filename, fat_dir
     }
     uint32_t index = start_index;
     while((dir_data[index].flags & FAT32_LONG_FILE_NAME) && dir_data[index].name[0]){
-        fat_lfn_t *lfn_ent = &(dir_data[index]);
+        fat_lfn_t *lfn_ent = (fat_lfn_t *)&(dir_data[index]);
         uint32_t filename_index_start = ((lfn_ent->entry_no & 0x3f) - 1) * LFN_ENTRY_CHAR_COUNT; //Strip `last entry` flag and zero index
         
         uint32_t i = 0;
@@ -256,7 +256,7 @@ fat_open_file_t *resolve_path(char *path, vfile_t *parent){
     }
     if(!path || path[0] == 0){
         // api(MODULE_API_PRINT, MODULE_NAME, "Parent name: %s\n", parent->name);
-        return parent;
+        return 0;
     }
     uint32_t path_index = 0;
     // api(MODULE_API_PRINT, MODULE_NAME, "Path: %s\n", pathname);
@@ -301,7 +301,7 @@ fat_open_file_t *resolve_path(char *path, vfile_t *parent){
         fat_dirent_t *dir_data = malloc(api, size_to_alloc);
         
         // api(MODULE_API_PRINT, MODULE_NAME, "Parent->ID: %d\n", fat32_mounts[parent->id].mount_src->id);
-        fat32_read_dirent(&parent_dir, dir_data, parent->id);
+        fat32_read_dirent(&parent_dir, (char *)dir_data, parent->id);
         
         fat_dirent_t *result = fat32_search_dir(path_tokens[i], dir_data, &dirent_index);
         
@@ -337,7 +337,7 @@ fat_open_file_t *resolve_path(char *path, vfile_t *parent){
     }
     returnable->file_flags = parent_dir.flags;
     returnable->mount_index = parent->id;
-    
+    returnable->size_bytes = parent_dir.size;
     fat_mount_t const* mount = &fat32_mounts[parent->id];
     uint32_t cluster_size_bytes = mount->bpb->sectors_per_cluster * mount->bpb->bytes_per_sector;
     returnable->size_clusters = (parent_dir.size + cluster_size_bytes - 1)/cluster_size_bytes;
@@ -349,10 +349,24 @@ fat_open_file_t *resolve_path(char *path, vfile_t *parent){
 vfile_t *fat32_open(char *path, vfile_t *parent){
     // puts(api, MODULE_NAME, "Called!\n");
     fat_open_file_t *file = resolve_path(path, parent);
-    // api(MODULE_API_PRINT, MODULE_NAME, "File: %x");
     if(!file){
-        puts(api, MODULE_NAME, "Error: File not found\n");
-        return 0;
+        if(!path[0]){
+            file = malloc(api, 1);
+            file->file_flags = parent->flags;
+            file->dirent_cluster = 0;
+            file->dirent_offset = 0;
+            strcpy(parent->name, file->filename);
+            api(MODULE_API_PRINT, MODULE_NAME, "Test mount id:%x\n", sizeof(fat_open_file_t));
+            file->mount_index = parent->id;
+            fat_mount_t mount = fat32_mounts[parent->id];
+            file->refcount = 1;
+            file->first_cluster = mount.bpb->root_dir_cluster;
+            file->size_clusters = -1;
+            file->size_bytes = 0;
+        }else{
+            puts(api, MODULE_NAME, "Error: File not found\n");
+            return 0;
+        }
     }
     vfile_t *to_return = malloc(api, 1);
     to_return->fileops = &fat32_fileops;
@@ -363,6 +377,7 @@ vfile_t *fat32_open(char *path, vfile_t *parent){
     to_return->private = file;
     to_return->block_size_bytes = 0;
     to_return->refcount = 1;
+    to_return->size = file->size_bytes;
     // api(MODULE_API_PRINT, MODULE_NAME, "to return: %x\n", to_return);
     return to_return;
 }
@@ -387,7 +402,7 @@ int fat32_write(vfile_t *file, void *buffer, uint64_t offset, uint64_t count){
     uint32_t clusters_to_write = udiv64(count + cluster_size_bytes - 1, cluster_size_bytes);
 #else
     uint32_t clusters_until_start = offset / cluster_size_bytes;
-    uint32_t clusters_to_read = (count + cluster_size_bytes - 1)/ cluster_size_bytes;
+    uint32_t clusters_to_write = (count + cluster_size_bytes - 1)/ cluster_size_bytes;
 #endif
     api(MODULE_API_PRINT, MODULE_NAME, "File name: %s | First cluster: %x | Clusters until start: %x | Clusters to write: %x\n", open_file->filename, first_cluster, clusters_until_start, clusters_to_write);
     uint32_t current_cluster = first_cluster;
@@ -419,7 +434,7 @@ int fat32_write(vfile_t *file, void *buffer, uint64_t offset, uint64_t count){
             free(api, cleared);
             uint64_t cluster_offset_bytes = ((new_cluster - 2) * cluster_size_bytes);
             uint64_t write_offset = cluster_offset_bytes + mount->data_start_sector * mount->bpb->bytes_per_sector;
-            fwrite(api, mount->mount_src, cleared, write_offset, PAGE_SIZE_BYTES);
+            fwrite(api, mount->mount_src, (char *)cleared, write_offset, PAGE_SIZE_BYTES);
             current_cluster = new_cluster;
         }
     }

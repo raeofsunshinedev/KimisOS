@@ -68,9 +68,9 @@ void sysinit(){
     // fread(test, buffer, 0, 8);
     // for(uint32_t i = 0; i < 16; i++){
         // printf("%x ", ((uint8_t*)buffer)[i]);
-    // }
-    
-    
+    // }`
+    printf("File size: %x\n", (uint32_t)home->size);
+
     printf("Bleh\n");
     for(;;);
 }
