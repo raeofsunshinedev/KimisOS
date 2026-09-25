@@ -40,7 +40,7 @@ void sysinit(){
     const kernel_config_t config = get_config_const();
     heap_init(config.kernel_heap_size);
     
-    vfile_t *home = fopen("/sys/hellofat.txt");
+    vfile_t *home = fopen("/sys/longfilenametest.txt");
     
     char *buffer = kmalloc(17);
     // printf("Buffer paddr: %x\n", get_paddr(buffer + 0xd100));
@@ -52,9 +52,9 @@ void sysinit(){
     }
     printf("\n");
     // fwrite(home, buffer + 0xd100, 0, 4096);
-    // home = fopen("/sys/longfilenametest.txt");
-    // fwrite(home, buffer, 0, 4096 * 16);
-    vfile_t *test = fopen("/dev/disk/ide0");
+    home = fopen("/sys/hellofat.txt");
+    fwrite(home, buffer, 0, strlen(buffer));
+    // vfile_t *test = fopen("/dev/disk/ide0");
     // void *tbuf = kmalloc(256);
     // 
     // memclr(tbuf, PAGE_SIZE_BYTES);

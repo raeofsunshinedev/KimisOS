@@ -390,6 +390,42 @@ int fat32_delete(vfile_t *file){
     
 }
 
+int dirent_writeback(vfile_t *file){
+    fat_open_file_t *open_file = file->private;
+    fat_mount_t *mount = &fat32_mounts[open_file->mount_index];
+    uint32_t cluster_size_bytes = (mount->bpb->bytes_per_sector * mount->bpb->sectors_per_cluster);
+
+    size_t dirents_per_cluster = cluster_size_bytes/sizeof(fat_dirent_t);
+    uint32_t dirent_index = open_file->dirent_offset;
+    api(MODULE_API_PRINT, MODULE_NAME, "Dirent Cluster: %x, Index: %x, Dirent cluster offset from root cluster: %x, Total Dirents per cluster: %x\n", open_file->dirent_cluster, dirent_index, dirent_index/dirents_per_cluster, dirents_per_cluster);
+    
+    
+    uint32_t cluster = open_file->dirent_cluster;
+    for(uint32_t i = 0; i < dirent_index/dirents_per_cluster; i++){
+        if(cluster >= FAT32_EOC && i < (dirent_index/dirents_per_cluster - 1)){
+            puts(api, MODULE_NAME, "Error: Reached end of cluster chain before reaching dirent's cluster\n");
+            api(MODULE_API_PRINT, MODULE_NAME, "Cluster Index: %x, Dirent Index: %x, #%d in chain\n", dirent_index/dirents_per_cluster, dirent_index, i);
+            puts(api, MODULE_NAME, "Data is malformed, Or memory corruption has occured (or there's a bug in the code). Please report this bug at https://github.com/raeofsunshinedev/kimisos \n");
+            return -1;
+        }
+        cluster = fat32_get_next_cluster(cluster, open_file->mount_index);
+    }
+    api(MODULE_API_PRINT, MODULE_NAME, "Cluster: %x\n", cluster);
+    fat_dirent_t *dir = malloc(api, 1);
+    uint64_t cluster_offset_bytes = ((cluster - 2) * cluster_size_bytes) + mount->data_start_sector * mount->bpb->bytes_per_sector;
+    fread(api, mount->mount_src, dir, cluster_offset_bytes, PAGE_SIZE_BYTES);
+    uint32_t index_adj = dirent_index % dirents_per_cluster;
+    
+    dir[index_adj].size = open_file->size_bytes;
+    dir[index_adj].cluster_high = (open_file->first_cluster >> 16);
+    dir[index_adj].cluster_low = (open_file->first_cluster & 0xffff);
+    dir[index_adj].flags = open_file->file_flags;
+    dir[index_adj].creation_date = (uint16_t)2026-1980 << 9;
+    //TODO: Put creation time in here (eventually)
+    fwrite(api, mount->mount_src, dir, cluster_offset_bytes, PAGE_SIZE_BYTES);
+    
+}
+
 int fat32_write(vfile_t *file, void *buffer, uint64_t offset, uint64_t count){
     puts(api, MODULE_NAME, "write called!\n");
     fat_open_file_t *open_file = file->private;
@@ -463,9 +499,10 @@ int fat32_write(vfile_t *file, void *buffer, uint64_t offset, uint64_t count){
             current_cluster = new_cluster;
         }
     }
-    
-    fat_dirent_t *dirent_sector = malloc(api, (cluster_size_bytes + PAGE_SIZE_BYTES - 1)/PAGE_SIZE_BYTES);
-    api(MODULE_API_PRINT, MODULE_NAME, "Dirent Cluster: %x\n", open_file->dirent_cluster);
+    if((offset + count) > open_file_cache[file->offset]->size_bytes){
+        open_file_cache[file->offset]->size_bytes = offset + count;
+    }
+    dirent_writeback(file);
     return count;
 }
 
