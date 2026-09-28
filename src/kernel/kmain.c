@@ -45,7 +45,7 @@ void sysinit(){
     char *buffer = kmalloc(17);
     // printf("Buffer paddr: %x\n", get_paddr(buffer + 0xd100));
     
-    fread(home, buffer, 0, 4096);
+    fread(home, buffer, 0, 10);
     uint32_t found = 0;
     for(uint32_t i = 0; i < 4096; i++){
         printf("%c", buffer[i]);
@@ -53,7 +53,7 @@ void sysinit(){
     printf("\n");
     // fwrite(home, buffer + 0xd100, 0, 4096);
     home = fopen("/sys/hellofat.txt");
-    fwrite(home, buffer, 0, strlen(buffer));
+    fwrite(home, buffer, 0, 5);
     // vfile_t *test = fopen("/dev/disk/ide0");
     // void *tbuf = kmalloc(256);
     // 
