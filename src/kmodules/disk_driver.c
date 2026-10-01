@@ -256,6 +256,7 @@ int read_disk(vfile_t *file, void *ptr, uint64_t offset, uint64_t count){
             // puts(api, MODULE_NAME, "Returning early, no more to read!\n");
             return count;
         }
+        remaining_count -= (SECTOR_SZ - (offset & 0x1ff));
         ptr += SECTOR_SZ - offset;
         offset += SECTOR_SZ - offset;
     }
@@ -291,33 +292,62 @@ int read_disk(vfile_t *file, void *ptr, uint64_t offset, uint64_t count){
 }
 
 int write_disk(vfile_t *file, void *ptr, uint64_t offset, uint64_t count){
+    if(!file || !ptr){
+        return 0;
+    }
+    // api(MODULE_API_PRINT, MODULE_NAME, "Read: %x %x\n", (uint32_t)offset, (uint32_t)count);
     const uint32_t LBA28_WRITE_BOUNDARY = 0x20000;
     const uint32_t LBA48_WRITE_BOUNDARY = 0x2000000;
-    uint32_t remaining_count = count;
+    const uint32_t SECTOR_SZ = 0x200;
+    size_t remaining_count = count;
     if(count == 0) return 0;
     if(offset & 0x1ff){
-        puts(api, MODULE_NAME, "Needs to get split\n");
-    }
-    if(drives[file->id].flags.huge){
-        uint32_t write_count = (count + (LBA48_WRITE_BOUNDARY - 1)) / LBA48_WRITE_BOUNDARY;
-        for(uint32_t i = 0; i < write_count; i++){
-            uint32_t to_write = (remaining_count % LBA48_WRITE_BOUNDARY);
-            if(to_write == 0) to_write = LBA48_WRITE_BOUNDARY;
-            remaining_count -= to_write;
-            ata_write(file, ptr + LBA48_WRITE_BOUNDARY * i, offset + LBA48_WRITE_BOUNDARY * i, to_write);
+        uint32_t aligned_offset = offset & ~0x1ff;
+        
+        uint8_t *bounce = malloc(api, 1);
+        // puts(api, MODULE_NAME, "Unaligned offset. Aligning\n");
+        
+        ata_read(file, bounce, aligned_offset, SECTOR_SZ);
+        memcpy(ptr, bounce + (offset & 0x1ff), min_u32(count, SECTOR_SZ - offset));
+        ata_write(file, bounce, aligned_offset, SECTOR_SZ);
+        free(api, bounce);
+        if(count <= (SECTOR_SZ - offset)){
+            // puts(api, MODULE_NAME, "Returning early, no more to read!\n");
+            return count;
         }
-    }else{
-        uint32_t write_count = (count + (LBA28_WRITE_BOUNDARY - 1)) / LBA28_WRITE_BOUNDARY;
-        for(uint32_t i = 0; i < write_count; i++){
-            uint32_t to_write = (remaining_count % LBA28_WRITE_BOUNDARY);
-            if(to_write == 0) to_write = LBA28_WRITE_BOUNDARY;
-            remaining_count -= to_write;
-            ata_write(file, ptr + LBA28_WRITE_BOUNDARY * i, offset + LBA28_WRITE_BOUNDARY * i, to_write);
+        remaining_count -= (SECTOR_SZ - (offset & 0x1ff));
+        ptr += SECTOR_SZ - offset;
+        offset += SECTOR_SZ - offset;
+    }
+    
+    uint32_t max_read_size = drives[file->id].flags.huge ? LBA48_WRITE_BOUNDARY : LBA28_WRITE_BOUNDARY;
+    // api(MODULE_API_PRINT, MODULE_NAME, "Reading from drive: %d\n", file->id);
+    while(remaining_count > 0){
+        size_t to_write = min_u32(max_read_size, remaining_count);
+        if(to_write & (PAGE_SIZE_BYTES - 1) && to_write > PAGE_SIZE_BYTES){
+            api(MODULE_API_PRINT, MODULE_NAME, "Less than a page!\n");
+            to_write -= (to_write & (PAGE_SIZE_BYTES - 1));
         }
+        if(to_write < PAGE_SIZE_BYTES){
+            uint8_t *bounce = malloc(api, 1);
+            ata_read(file, bounce, offset + (count - remaining_count), PAGE_SIZE_BYTES);
+            // api(MODULE_API_PRINT, MODULE_NAME, "count %x, total %x\n", count - remaining_count, to_read);
+            for(uint32_t i = 0; i < to_write; i++){
+                ((uint8_t *)bounce)[i] = ((uint8_t*)ptr)[count-remaining_count + i];
+            }
+            ata_write(file, bounce, offset + count - remaining_count, PAGE_SIZE_BYTES);
+            free(api, bounce);
+        }else{
+            // api(MODULE_API_PRINT, MODULE_NAME, "ATA Reading (Pre)| File: %x, Ptr: %x, Offset: %x, Count: %x\n", file, ptr + (count - remaining_count), (uint32_t)(offset + count - remaining_count), to_read);
+            ata_write(file, ((uint8_t *)ptr) + (count - remaining_count), offset + (count - remaining_count), to_write);
+            // puts(api, MODULE_NAME, "ATA Reading (Post)\n");
+        }
+        // api(MODULE_API_PRINT, MODULE_NAME, "To read %x, Remaining: %x\n", to_read, remaining_count);
+        remaining_count -= to_write;
     }
-    if(count & 0xfff){
-        puts(api, MODULE_NAME, "Needs to get split for count\n");
-    }
+    
+    // api(MODULE_API_PRINT, MODULE_NAME, "End\n");
+    
     return count;
 }
 
