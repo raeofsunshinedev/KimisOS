@@ -583,6 +583,7 @@ vfile_t *fat32_create(vfile_t *parent, char *path, FS_FILE_FLAGS flags){
     if(short_filename_matches > 999999){
         free(api, buffer);
         free(api, trunc_path);
+        free(api, dirents_to_write);
         return 0;
     }
     itoa(short_filename_matches, short_filename + 2, 10);
@@ -644,9 +645,11 @@ vfile_t *fat32_create(vfile_t *parent, char *path, FS_FILE_FLAGS flags){
         buffer[i + free_index] = dirents_to_write[total_dirents - 2 - i];
     }
     fat32_write(parent_dir, buffer, 0, cluster_size_bytes * cluster_count);
-    uint32_t *tbuf = malloc(api, 60);
-    fat32_read(parent_dir, tbuf, 0, cluster_size_bytes * cluster_count);
-
+    
+    free(api, trunc_path);
+    free(api, buffer);
+    free(api, dirents_to_write);
+    
     return fat32_open(path, parent);
 }
 
