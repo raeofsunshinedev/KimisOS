@@ -45,7 +45,7 @@ void sysinit(){
     char *buffer = kmalloc(17);
     // printf("Buffer paddr: %x\n", get_paddr(buffer + 0xd100));
     
-    fread(home, buffer, 0, 4096);
+    fread(home, buffer, 0, 10);
     uint32_t found = 0;
     for(uint32_t i = 0; i < 4096; i++){
         printf("%c", buffer[i]);
