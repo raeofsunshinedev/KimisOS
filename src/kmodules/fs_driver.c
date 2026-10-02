@@ -1,4 +1,3 @@
-#include <linux/limits.h>
 #include <stdint.h>
 #include "modlib.h"
 #include "fs_driver.h"
@@ -237,7 +236,7 @@ fat_dirent_t *fat32_search_dir(char *path, fat_dirent_t *dir_data, uint32_t *dir
         else{
             fat32_copy_short_filename(i, filename, dir_data);
         }
-        // api(MODULE_API_PRINT, MODULE_NAME, "filename: %s\n", filename);
+        api(MODULE_API_PRINT, MODULE_NAME, "filename: %s\n", filename);
         if(!strcmp(path, filename)){
             // api(MODULE_API_PRINT, MODULE_NAME, "Found file: %s | Short: %s\n", filename, dir_data[i].name);
             *dirent_index = i;
@@ -275,6 +274,8 @@ fat_open_file_t *resolve_path(char *path, vfile_t *parent){
     uint32_t pathname_entries = 0;
     char *pathtok = pathname;
     char *i = pathname;
+    
+    uint8_t err_in_search = 0;
     while (*i != '\0') {
         if (*i == '/') {
             *i = '\0';
@@ -307,6 +308,7 @@ fat_open_file_t *resolve_path(char *path, vfile_t *parent){
         
         if(!result){
             free(api, dir_data);
+            err_in_search = 1;
             break;
         }
         last_parent_dir = parent_dir;
@@ -317,7 +319,9 @@ fat_open_file_t *resolve_path(char *path, vfile_t *parent){
     //return reference
     free(api, pathname);
     free(api, path_tokens);
-    // puts(api, MODULE_NAME, "Returning!\n");
+    if(err_in_search){
+        return 0;
+    }
     fat_open_file_t *returnable = malloc(api, 1);
     if(!returnable){
         return 0;
@@ -343,11 +347,13 @@ fat_open_file_t *resolve_path(char *path, vfile_t *parent){
     returnable->size_clusters = (parent_dir.size + cluster_size_bytes - 1)/cluster_size_bytes;
     
     //construct fat_open_file_t *and retur
+    // puts(api, MODULE_NAME, "Returning!\n");
     return returnable;
 }
 
 vfile_t *fat32_open(char *path, vfile_t *parent){
     // puts(api, MODULE_NAME, "Called!\n");
+    api(MODULE_API_PRINT, MODULE_NAME, "Path to open: %s\n", path);
     fat_open_file_t *file = resolve_path(path, parent);
     if(!file){
         if(!path[0]){
@@ -382,8 +388,266 @@ vfile_t *fat32_open(char *path, vfile_t *parent){
     return to_return;
 }
 
+uint8_t lfn_checksum(const uint8_t sfn[11])
+{
+    uint8_t sum = 0;
+
+    for (int i = 0; i < 11; i++)
+        sum = ((sum & 1) ? 0x80 : 0) + (sum >> 1) + sfn[i];
+
+    return sum;
+}
+
 vfile_t *fat32_create(vfile_t *parent, char *path, FS_FILE_FLAGS flags){
+    fat_mount_t *mount = &fat32_mounts[parent->id];
     
+    uint32_t cluster_size_bytes = (mount->bpb->bytes_per_sector * mount->bpb->sectors_per_cluster);
+    
+    if(path[0] == 0){
+        return 0;
+    }
+    //normally use ceiling division in the form of (n + x - 1)/x, but as i need to allocate space
+    //for n + 1 bytes, the -1 cancels out
+    char *trunc_path = malloc(api, (strlen(path) + PAGE_SIZE_BYTES )/PAGE_SIZE_BYTES);
+    
+    if(!trunc_path){
+        return 0;
+    }
+    
+    if(path[0] == '/') path++; //remove preceding '/'
+    strcpy(path, trunc_path);
+    char *file_to_create = trunc_path + strlen(trunc_path) - 1;
+    if(file_to_create[0] == '/') file_to_create[0] = 0; //remove following '/' when creating dirs.
+    
+    while(*file_to_create != '/' && file_to_create > trunc_path){
+        file_to_create--;
+    }
+    if(file_to_create[0] == '/'){
+        //split string at '/' and set ptr to next char
+        file_to_create[0] = 0;
+        file_to_create++;
+    }
+    
+    api(MODULE_API_PRINT, MODULE_NAME, "File to create: %s | Parent dir path: %s | Passed path: %s\n", file_to_create, trunc_path, path);
+    
+    vfile_t *parent_dir = parent;
+    if(file_to_create != trunc_path){
+        //if the file to create is not the entire path that has been passed, try and find the proper directory
+        parent_dir = fat32_open(trunc_path, parent);
+    }
+    if(!parent_dir){
+        api(MODULE_API_PRINT, MODULE_NAME, "Failed to create file: Could not find parent dir %s\n", trunc_path);
+        free(api, trunc_path);
+        return 0;
+    }
+    
+    uint32_t filename_len = strlen(file_to_create);
+    /*if(file_to_create == trunc_path)
+    then trunc_path is the file to create, and parent is the correct parent directory
+    */
+    const uint32_t CHARS_PER_LFN = 13;
+    uint32_t lfn_count = (filename_len + CHARS_PER_LFN - 1) / CHARS_PER_LFN;
+    
+    api(MODULE_API_PRINT, MODULE_NAME, "Total dirents required: %d\n", lfn_count);
+    
+    uint32_t cluster_count = 0;
+    fat_open_file_t *parent_dir_of = parent_dir->private;
+    if(!parent_dir_of){
+        free(api, trunc_path);
+        return 0;
+    }
+    uint32_t cluster = parent_dir_of->first_cluster;
+    uint32_t last_cluster = 0;
+    fat_dirent_t *buffer = 0;
+    if(cluster == 0){
+        cluster = fat32_get_free_cluster(parent->id);
+        last_cluster = cluster;
+        if(!cluster){
+            free(api, trunc_path);
+            return 0;
+        }
+        fat32_set_next_cluster(cluster, FAT32_EOC, parent->id);
+        cluster_count = 1;
+        
+        buffer = malloc(api, (cluster_size_bytes + PAGE_SIZE_BYTES - 1)/PAGE_SIZE_BYTES);
+        if(!buffer){
+            free(api, trunc_path);
+            return 0;
+        }
+        for(uint32_t i = 0; i < cluster_size_bytes / sizeof(uint32_t); i++){
+            ((uint32_t *)buffer)[i] = 0;
+        }
+    }
+    else{
+        while(cluster < FAT32_EOC){
+            cluster_count++;
+            last_cluster = cluster;
+            cluster = fat32_get_next_cluster(cluster, parent->id);
+        }
+        api(MODULE_API_PRINT, MODULE_NAME, "Cluster count: %x\n", cluster_count);
+        buffer = malloc(api, ((cluster_size_bytes * cluster_count) + PAGE_SIZE_BYTES - 1)/PAGE_SIZE_BYTES);
+        if(!buffer){
+            free(api, trunc_path);
+            return 0;
+        }
+        fat32_read(parent_dir, buffer, 0, cluster_count * cluster_size_bytes);
+    }
+    //11 is the number of characters in the 8.3 filename format
+    
+    // uint32_t needs_lfn = 1;
+    // uint32_t ext_index = 0;
+    
+    
+    // for(uint32_t i = 0; i < 9 && i < filename_len; i++){
+    //     if(file_to_create[i] ==// '.'){
+    //         needs_lfn = 0;
+    //         ext_index = i;
+    //         break;
+    //     }
+    // }
+    // if((filename_len - (ext_index + 1)) > 3){
+    //     needs_lfn = 1;
+    // }
+    uint32_t total_dirents = lfn_count + 1; //account for the dirent
+    //if it doesn't need an LFN, then we can just use
+    //the single dirent with the short filename
+    uint32_t dir_entry_count = (cluster_size_bytes * cluster_count) / sizeof(fat_dirent_t);
+    
+    uint32_t found = 0;
+    uint32_t free_index = (uint32_t)-1;
+    char short_filename[20];
+    uint32_t short_filename_matches = 0;
+    memcpy(file_to_create, short_filename, 6);
+    for(uint32_t i = 0; i < dir_entry_count; i++){
+        found = 1;
+        for(uint32_t j = 0; j < total_dirents; j++){
+            if(i+j >= dir_entry_count){
+                found = 0;
+                break;
+            }
+            if(buffer[i+j].name[0] == 0){
+                break;
+            }
+            if(buffer[i+j].name[0] != 0xe5){
+                found = 0;
+                i += j;
+                break;
+            }
+        }
+        if(buffer[i].name[0] == 0){
+            found = 1;
+            free_index = i;
+            break;
+        }
+        if(buffer[i].name[0] == file_to_create[0]){
+            short_filename_matches++;
+        }
+        if(found == 0){
+            continue;
+        }
+        if(i < free_index){
+            free_index = i;
+        }
+    }
+    
+    if(!found ||(free_index + total_dirents) > dir_entry_count){
+        api(MODULE_API_PRINT, MODULE_NAME, "Directory full! extending...\n");
+        uint32_t new_cluster = fat32_get_free_cluster(parent->id);
+        fat32_set_next_cluster(new_cluster, FAT32_EOC, parent->id);
+        if(!new_cluster){
+            free(api, buffer);
+            free(api, trunc_path);
+            return 0;
+        }
+        fat32_set_next_cluster(last_cluster, new_cluster, parent->id);
+        void *old_buffer = buffer;
+        buffer = malloc(api, ((cluster_count + 1) * cluster_size_bytes + PAGE_SIZE_BYTES - 1)/PAGE_SIZE_BYTES);
+        memcpy(old_buffer, buffer, cluster_count++ * cluster_size_bytes);
+        memclr(buffer + cluster_size_bytes * cluster_count, cluster_size_bytes);
+        if(!found){
+            free_index = dir_entry_count;
+        }
+        dir_entry_count += cluster_size_bytes/sizeof(fat_dirent_t);
+        free(api, old_buffer);
+    }
+    
+    api(MODULE_API_PRINT, MODULE_NAME, "Found free dirent at %x, needed %d consecutive\n", free_index, total_dirents);
+    
+    fat_dirent_t *dirents_to_write = malloc(api, (total_dirents + PAGE_SIZE_BYTES - 1)/PAGE_SIZE_BYTES);
+    uint32_t name_pos = 0;
+    
+    short_filename[0] = file_to_create[0];
+    short_filename[1] = '~';
+    //cannot fit in 6 digits, cannot make sfn
+    //(why are there 100,000 files with the same sfn in the same directory???)
+    if(short_filename_matches > 999999){
+        free(api, buffer);
+        free(api, trunc_path);
+        return 0;
+    }
+    itoa(short_filename_matches, short_filename + 2, 10);
+    
+    
+    uint32_t ext_index = 0;
+    while(ext_index < filename_len && file_to_create[ext_index++] != '.');
+    
+    memcpy(file_to_create + ext_index, short_filename+8, 3);
+    uint32_t checksum = lfn_checksum(short_filename);
+    
+    for(int i = 0; i < total_dirents; i++){
+        if(i == total_dirents - 1){
+            //the *real* dirent
+            fat_dirent_t *dirent = &dirents_to_write[i];
+            
+            memcpy(short_filename, dirent->name, 11);
+            
+            dirent->flags = flags & 0x2f;
+            dirent->size = 0;
+            dirent->cluster_high = 0;
+            dirent->cluster_low = 0;
+            break;
+        }
+        fat_lfn_t *lfn_ent = (fat_lfn_t*)(&dirents_to_write[i]);
+        *lfn_ent = (fat_lfn_t){0};
+        api(MODULE_API_PRINT, MODULE_NAME, "Making lfn entry: %d in series of %d\n", i, total_dirents);
+        for(uint32_t j = 0; j < 5 && file_to_create[name_pos]; j++){
+            lfn_ent->name0[j] = file_to_create[name_pos++];
+        }
+        for(uint32_t j = 0; j < 6 && file_to_create[name_pos]; j++){
+            lfn_ent->name1[j] = file_to_create[name_pos++];
+        }
+        for(uint32_t j = 0; j < 2 && file_to_create[name_pos]; j++){
+            lfn_ent->name2[j] = file_to_create[name_pos++];
+        }
+        char tb[33] = {0};
+        for(uint32_t i = 0; i < 32; i++){
+            tb[i] = ((char*)lfn_ent)[i];
+            if(tb[i] == 0) tb[i] = 0x20;
+        }
+        api(MODULE_API_PRINT, MODULE_NAME, "Test: %s, name pos: %x\n", tb, sizeof(fat_lfn_t));
+        lfn_ent->entry_no = i + 1;
+        lfn_ent->checksum = checksum;
+        lfn_ent->attribute = 0xf;
+        if(i == total_dirents - 2){
+            api(MODULE_API_PRINT, MODULE_NAME, "Final filename entry!\n");
+            lfn_ent->entry_no |= 0x40;
+        }
+    }
+    for(uint32_t i = 0; i < total_dirents; i++){
+        if(i == total_dirents - 1){
+            //write final dirent
+            buffer[i + free_index] = dirents_to_write[total_dirents - 1];
+            api(MODULE_API_PRINT, MODULE_NAME, "Pos: %x\n", total_dirents - 1);
+            break;
+        }
+        api(MODULE_API_PRINT, MODULE_NAME, "Pos: %x\n", total_dirents - 1 - i);
+        buffer[i + free_index] = dirents_to_write[total_dirents - 2 - i];
+    }
+    fat32_write(parent_dir, buffer, 0, cluster_size_bytes * cluster_count);
+    uint32_t *tbuf = malloc(api, 60);
+    fat32_read(parent_dir, tbuf, 0, cluster_size_bytes * cluster_count);
+
+    return fat32_open(path, parent);
 }
 
 int fat32_delete(vfile_t *file){
@@ -420,7 +684,6 @@ int dirent_writeback(vfile_t *file){
     dir[index_adj].cluster_high = (open_file->first_cluster >> 16);
     dir[index_adj].cluster_low = (open_file->first_cluster & 0xffff);
     dir[index_adj].flags = open_file->file_flags;
-    dir[index_adj].creation_date = (uint16_t)2026-1980 << 9;
     //TODO: Put creation time in here (eventually)
     fwrite(api, mount->mount_src, dir, cluster_offset_bytes, PAGE_SIZE_BYTES);
     
@@ -431,6 +694,14 @@ int fat32_write(vfile_t *file, void *buffer, uint64_t offset, uint64_t count){
     fat_open_file_t *open_file = file->private;
     fat_mount_t *mount = &fat32_mounts[open_file->mount_index];
     uint32_t first_cluster = open_file->first_cluster;
+    if(first_cluster == 0){
+        first_cluster = fat32_get_free_cluster(file->id);
+        if(!first_cluster){
+            return 0;
+        }
+        fat32_set_next_cluster(first_cluster, FAT32_EOC, file->id);
+        open_file->first_cluster = first_cluster;
+    }
     uint32_t cluster_size_bytes = (mount->bpb->bytes_per_sector * mount->bpb->sectors_per_cluster);
 #ifdef __i386__
     // api(MODULE_API_PRINT, MODULE_NAME, "Test %x\n", udiv64(8, 2));

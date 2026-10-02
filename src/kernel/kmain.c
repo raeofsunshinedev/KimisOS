@@ -54,7 +54,7 @@ void sysinit(){
     // fwrite(home, buffer + 0xd100, 0, 4096);
     home = fopen("/sys/hellofat.txt");
     fwrite(home, buffer, 0, strlen(buffer));
-    // vfile_t *test = fopen("/dev/disk/ide0");
+    // vfile_t *ide0 = fopen("/dev/disk/ide0");
     // void *tbuf = kmalloc(256);
     // 
     // memclr(tbuf, PAGE_SIZE_BYTES);
@@ -70,7 +70,11 @@ void sysinit(){
         // printf("%x ", ((uint8_t*)buffer)[i]);
     // }`
     printf("File size: %x\n", (uint32_t)home->size);
-
+    
+    vfile_t *t = fcreate("/sys/test.txt", 0);
+    
+    fwrite(t, buffer, 0, strlen(buffer));
+    
     printf("Bleh\n");
     for(;;);
 }
