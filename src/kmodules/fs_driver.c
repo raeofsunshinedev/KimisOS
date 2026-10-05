@@ -653,7 +653,7 @@ vfile_t *fat32_create(vfile_t *parent, char *path, FS_FILE_FLAGS flags){
     return fat32_open(path, parent);
 }
 
-int fat32_delete(vfile_t *file){
+int fat32_delete(vfile_t *file, char *child){
     
 }
 

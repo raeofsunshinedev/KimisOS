@@ -12,9 +12,10 @@ all: bootloader tools kernel
 	qemu-img resize -f raw image.bin 64M
 	tar --format=ustar -cf initrd.rd idm.elf ifsm.elf part_mgr.elf initrc.conf 
 # 	./diskwrite idm.elf ifsm.elf kernel.elf initrc.conf -o image.bin
-	./diskwrite initrd.rd kernel.elf hellofat.txt -o image.bin
+	./diskwrite initrd.rd kernel.elf -o image.bin
 	sudo mount image.bin mount
-	sudo cp longfilenametest.txt mount/longfilenametest.txt
+	sudo cp resources/longfilenametest.txt mount/longfilenametest.txt
+	sudo cp resources/hellofat.txt mount/hellofat.txt
 	sudo umount mount
 # 	sudo mkdir mount/mod # for kernel modules
 # 	sudo mkdir mount/bin # for binary executables
