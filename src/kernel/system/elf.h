@@ -54,4 +54,4 @@ typedef struct{
 #define ELF_TYPE_SHARED 3
 #define ELF_TYPE_CORE 4
 
-void *load_elf(void *file_data, uint32_t map_flags);
+void *load_elf_dynamic(void *file_data, uint32_t map_flags);

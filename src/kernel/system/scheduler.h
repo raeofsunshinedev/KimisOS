@@ -38,3 +38,5 @@ void thread_exit(uint32_t exit_code);
 void set_pid_blocked(uint32_t pid);
 void set_pid_unblocked(uint32_t pid);
 uint32_t get_current_pid();
+
+int exec(char *filename, char **argv, uint32_t argc);

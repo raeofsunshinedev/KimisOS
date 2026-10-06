@@ -127,10 +127,19 @@ void fork(){
     //and copy all page entries with write disabled
     //(so we con perform a copy on write)
 }
-void exec(char *filename, char **argv){
+int exec(char *filename, char **argv, uint32_t argc){
     //open and read file {filename}
     //then create a new address space, parse elf header and create
     //a new schedulable entity
+    printf("File: %s\n", filename);
+    //clear address space from 0 to kerne base
+    uint32_t *pd = (uint32_t*)0xfffff000;
+    for(uint32_t i = 0; i < (0xc0000000 >> 22); i++){
+        pd[i] = 0;
+        asm volatile("invlpg (%0)" : : "b"(0xffc00000 + (i * 0x400)) : "memory");
+    }
+    printf("Cleared address space!\n");
+    return 0;
 }
 void kill(uint32_t pid){
     uint32_t pd = (uint32_t)processes[pid].page_dir;

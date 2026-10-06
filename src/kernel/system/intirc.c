@@ -1,6 +1,7 @@
 #include "../shared/kstdlib.h"
 #include "../shared/memory.h"
 #include "../shared/string.h"
+#include "scheduler.h"
 #include "modules.h"
 #include "initrc.h"
 #include "vfs.h"
@@ -144,6 +145,23 @@ void initrc_read(vfile_t *file){
         }
         else if(!strcmp(statement, "CONFIG")){
             mlog("INITRC", "Error: Not implemented\n", MLOG_PRINT);
+        }
+        else if(!strcmp(statement, "EXEC")){
+            while(ptr[i] <= ' ') i++;
+            char src_file[512];
+            int j = 0;
+            memclr(src_file, 512);
+            //copy only printable characters, exclude comments, leave at least one char in buffer for whitespace
+            while(ptr[i] > ' ' && ptr[i] != '#' && j < 511){
+                src_file[j++] = ptr[i++];
+            }
+            
+            exec(src_file, 0, 0);
+        }
+        else if(!strcmp(statement, "SYSINIT")){
+            mlog("INITRC", "Finishing Initialization\n", MLOG_PRINT);
+            const kernel_config_t config = get_config_const();
+            heap_init(config.kernel_heap_size);
         }
         else if(!strcmp(statement, "END")){
             return;

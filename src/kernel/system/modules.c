@@ -218,7 +218,7 @@ uint32_t dispatch_message(uint32_t message, ...){
 }
 
 void module_start(void *ptr){
-    void (*entry)(void* api, uint32_t version) = load_elf(ptr, PT_SYS);
+    void (*entry)(void* api, uint32_t version) = load_elf_dynamic(ptr, PT_SYS);
     (*entry)(module_api, 0);
 }
 void modules_init(){

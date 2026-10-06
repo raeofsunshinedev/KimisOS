@@ -15,6 +15,7 @@ all: bootloader tools kernel
 	./diskwrite initrd.rd kernel.elf -o image.bin
 	sudo mount image.bin mount
 	sudo cp resources/longfilenametest.txt mount/longfilenametest.txt
+	sudo cp resources/exectest mount/exectest
 	sudo cp resources/hellofat.txt mount/hellofat.txt
 	sudo umount mount
 # 	sudo mkdir mount/mod # for kernel modules

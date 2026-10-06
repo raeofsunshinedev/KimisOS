@@ -37,43 +37,6 @@ void sysinit(){
     else{
         mlog("KERNEL", "ERROR: Initrc could not be located!\n", MLOG_PRINT);
     }
-    const kernel_config_t config = get_config_const();
-    heap_init(config.kernel_heap_size);
-    
-    vfile_t *home = fopen("/sys/longfilenametest.txt");
-    
-    char *buffer = kmalloc(17);
-    // printf("Buffer paddr: %x\n", get_paddr(buffer + 0xd100));
-    
-    fread(home, buffer, 0, home->size);
-    uint32_t found = 0;
-    for(uint32_t i = 0; i < 4096; i++){
-        printf("%c", buffer[i]);
-    }
-    printf("\n");
-    // fwrite(home, buffer + 0xd100, 0, 4096);
-    home = fopen("/sys/hellofat.txt");
-    fwrite(home, buffer, 0, strlen(buffer));
-    // vfile_t *ide0 = fopen("/dev/disk/ide0");
-    // void *tbuf = kmalloc(256);
-    // 
-    // memclr(tbuf, PAGE_SIZE_BYTES);
-    // memclr(buffer, PAGE_SIZE_BYTES);
-    // 
-    // fread(test, tbuf, 8, 512-8);
-    // for(uint32_t i = 0; i < 16; i++){
-        // printf("%x ", ((uint8_t*)tbuf)[i]);
-    // }
-    // printf("\n");
-    // fread(test, buffer, 0, 8);
-    // for(uint32_t i = 0; i < 16; i++){
-        // printf("%x ", ((uint8_t*)buffer)[i]);
-    // }`
-    printf("File size: %x\n", (uint32_t)home->size);
-    
-    vfile_t *t = fcreate("/sys/test.txt", 0);
-    
-    fwrite(t, buffer, 0, strlen(buffer));
     
     printf("Bleh\n");
     for(;;);
