@@ -139,10 +139,14 @@ int exec(char *filename, char **argv, uint32_t argc){
     
     //clear address space from 0 to kerne base
     uint32_t *pd = (uint32_t*)0xfffff000;
-    // for(uint32_t i = 0; i < (0xc0000000 >> 22) - 1; i++){
-    //     pd[i] = 0;
-    //     asm volatile("invlpg (%0)" : : "b"(0xffc00000 + (i * 0x400)) : "memory");
-    // }
+    for(uint32_t i = 1; i < (0xc0000000 >> 22) - 1; i++){
+        pd[i] = 0;
+        asm volatile("invlpg (%0)" : : "b"(0xffc00000 + (i * 0x400)) : "memory");
+    }
+    uint32_t *pt = (uint32_t *)(0xffc00000);
+    //mark the null page as not present
+    pt[0] = 0;
+    asm volatile("invlpg (%0)" : : "b"(0) : "memory");
     
     load_elf(program, PT_PRESENT);
     
