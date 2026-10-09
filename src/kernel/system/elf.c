@@ -60,3 +60,31 @@ void *load_elf_dynamic(void *file_data, uint32_t map_flags){
     }
     return base_segment + header->entry_offset;
 }
+
+void load_segment_static(program_entry_t entry, uint32_t map_flags){
+    
+}
+
+void *load_elf(vfile_t *file, uint32_t map_flags){
+    char *file_data = kmalloc(1);
+    
+    fread(file, file_data, 0, sizeof(elf_header_t));
+    
+    elf_header_t *header = file_data;
+    
+    if(header->magic != 0x464c457f || header->type == ELF_TYPE_CORE){
+        return 0;
+    }
+    
+#ifdef __i386__
+    if(header->bits != ELF_BITS_32){
+        return 0;
+    }
+#elifdef __x86_64__
+    if(header->bits == 0 && header->bits > ELF_BITS_64){
+        return 0;
+    }
+#endif
+    
+    return 0;
+}

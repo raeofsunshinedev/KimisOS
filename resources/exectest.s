@@ -1,4 +1,7 @@
 segment .text
+
+global _start
+
 _start:
     mov edi, 0x8b000
     mov esi, string
@@ -8,7 +11,7 @@ printstr:
     lodsb
     cmp al, 0
     je end
-    mov [edi + ebx], ax
+    mov [edi + ebx * 2], ax
     inc bx
     jmp printstr
 end:

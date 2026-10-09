@@ -1,6 +1,6 @@
 #pragma once
 #include <stdint.h>
-
+#include "vfs.h"
 #define ELF_SIG 0x464c457f
 #define ELF_BITS_32 1
 #define ELF_BITS_64 2
@@ -53,5 +53,7 @@ typedef struct{
 #define ELF_TYPE_EXE 2
 #define ELF_TYPE_SHARED 3
 #define ELF_TYPE_CORE 4
-
+//expects a buffer of the file data already prepared
 void *load_elf_dynamic(void *file_data, uint32_t map_flags);
+//expects a vfile_t *
+void *load_elf(vfile_t *file, uint32_t map_flags);

@@ -4,6 +4,8 @@
 #include "../shared/kstdlib.h"
 #include "../shared/memory.h"
 #include "../shared/spinlock.h"
+#include "vfs.h"
+#include "elf.h"
 
 volatile process_t *processes;
 volatile uint32_t process_queue[PROCESS_COUNT];
@@ -131,14 +133,19 @@ int exec(char *filename, char **argv, uint32_t argc){
     //open and read file {filename}
     //then create a new address space, parse elf header and create
     //a new schedulable entity
-    printf("File: %s\n", filename);
+    vfile_t *program = fopen(filename);
+    
+    if(!program) return -1;
+    
     //clear address space from 0 to kerne base
     uint32_t *pd = (uint32_t*)0xfffff000;
-    for(uint32_t i = 0; i < (0xc0000000 >> 22); i++){
-        pd[i] = 0;
-        asm volatile("invlpg (%0)" : : "b"(0xffc00000 + (i * 0x400)) : "memory");
-    }
-    printf("Cleared address space!\n");
+    // for(uint32_t i = 0; i < (0xc0000000 >> 22) - 1; i++){
+    //     pd[i] = 0;
+    //     asm volatile("invlpg (%0)" : : "b"(0xffc00000 + (i * 0x400)) : "memory");
+    // }
+    
+    load_elf(program, PT_PRESENT);
+    
     return 0;
 }
 void kill(uint32_t pid){
