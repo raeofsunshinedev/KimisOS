@@ -236,7 +236,7 @@ fat_dirent_t *fat32_search_dir(char *path, fat_dirent_t *dir_data, uint32_t *dir
         else{
             fat32_copy_short_filename(i, filename, dir_data);
         }
-        api(MODULE_API_PRINT, MODULE_NAME, "filename: %s\n", filename);
+        // api(MODULE_API_PRINT, MODULE_NAME, "filename: %s\n", filename);
         if(!strcmp(path, filename)){
             // api(MODULE_API_PRINT, MODULE_NAME, "Found file: %s | Short: %s\n", filename, dir_data[i].name);
             *dirent_index = i;
@@ -353,7 +353,7 @@ fat_open_file_t *resolve_path(char *path, vfile_t *parent){
 
 vfile_t *fat32_open(char *path, vfile_t *parent){
     // puts(api, MODULE_NAME, "Called!\n");
-    api(MODULE_API_PRINT, MODULE_NAME, "Path to open: %s\n", path);
+    // api(MODULE_API_PRINT, MODULE_NAME, "Path to open: %s\n", path);
     fat_open_file_t *file = resolve_path(path, parent);
     if(!file){
         if(!path[0]){
@@ -852,9 +852,9 @@ int fat32_read(vfile_t *file, void *buffer, uint64_t offset, uint64_t count){
         uint64_t cluster_offset_bytes = ((current_cluster - 2) * cluster_size_bytes);
         uint64_t read_offset = cluster_offset_bytes + mount->data_start_sector * mount->bpb->bytes_per_sector;
         uint32_t offset_in_cluster = 0;
-        api(MODULE_API_PRINT, MODULE_NAME, "Reading cluster: %x, offset at %x\n", current_cluster, read_offset);
+        // api(MODULE_API_PRINT, MODULE_NAME, "Reading cluster: %x, offset at %x\n", current_cluster, read_offset);
         if((remaining_count < cluster_size_bytes)){
-            puts(api, MODULE_NAME, "Last Cluster!\n");
+            // puts(api, MODULE_NAME, "Last Cluster!\n");
             // fread(api, mount->mount_src, buffer + i * cluster_size_bytes, read_offset + (offset & (cluster_size_bytes - 1)), count & (cluster_size_bytes - 1) - (offset & (cluster_size_bytes - 1)));
             fread(api, mount->mount_src, buffer + i * cluster_size_bytes, read_offset, remaining_count);
             remaining_count = 0;

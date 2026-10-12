@@ -212,7 +212,7 @@ _isr_common_stub:
     push esp;push argument
     call _isr_handler
     pop esp
-    
+    mov esp, eax
     pop gs
     pop fs
     pop es
@@ -363,3 +363,17 @@ panic_hold:
     pop ds
     popad
     jmp $
+
+
+global get_gdt
+
+get_gdt:
+    sgdt [gdt_desc]
+    mov eax, gdt_desc
+    ret
+
+section .data
+align 4
+gdt_desc:
+    dw 0; limit
+    dd 0; ptr

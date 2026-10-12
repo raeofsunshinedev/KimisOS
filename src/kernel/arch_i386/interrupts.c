@@ -101,9 +101,17 @@ cpu_registers_t *_irq_handler(cpu_registers_t *regs){
 
 char *isr_error_strings[] = {"DE", "DB", "NMI", "BP", "OF", "BR", "UD", "NM", "DF", "CSO", "TS", "NP", "SS", "GP", "PF", "", "MF", "AC", "MC", "XM", "VE", "CP", ""};
 
-void _isr_handler(cpu_registers_t *regs){
-    printf("Kernel Panic!\n");
+void *_isr_handler(cpu_registers_t *regs){
     printf("ISR: #%s\n", isr_error_strings[regs->int_no]);
+    if(regs->int_no != 0xa && regs->int_no != 0x8){
+        uint32_t old_pid = get_current_pid();
+        kill(get_current_pid());
+        regs = schedule(regs);
+        uint32_t new_pid = get_current_pid();
+        
+        return regs;
+    }
+    printf("Kernel Panic!\n");
     printf("EAX: %x EBX: %x ECX: %x EDX: %x\n", regs->eax, regs->ebx, regs->ecx, regs->edx);
     printf("ESI: %x EDI: %x ESP: %x EBP: %x\n", regs->esi, regs->edi, regs->esp, regs->ebp);
     printf("EIP: %x CS: %x DS: %x SS: %x\n", regs->eip, regs->cs, regs->ds, regs->ss);

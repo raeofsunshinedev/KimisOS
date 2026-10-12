@@ -11,3 +11,4 @@ intlog.*
 .vscode
 bochsrc
 initrd.rd
+.clangd

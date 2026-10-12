@@ -13,6 +13,24 @@ typedef struct idt{
     uint32_t pointer;
 }__attribute__((packed))idt_t;
 
+typedef struct gdt_desc{
+    uint16_t size;
+    uint32_t ptr;
+}__attribute__((packed)) gdt_desc_t;
+
+typedef struct gdt_entry{
+    uint16_t limit_low;
+    uint16_t base_low;
+    uint8_t base_med;
+    struct{
+        uint8_t accessed:1;
+        uint8_t rw:1;
+        uint8_t dc:1;
+        uint8_t executable:1;
+        uint8_t type:1;
+    }access;
+}__attribute__((packed))gdt_entry_t;
+
 #define IDT_GATE_TASK   0x5
 #define IDT_GATE_INT16  0x6
 #define IDT_GATE_TRAP16 0x7
@@ -33,3 +51,5 @@ void kernel_panic(char *msg, cpu_registers_t *regs);
 void install_irq_handler(void (*handler)(), uint8_t irqno);
 void *get_irq_handler(uint8_t irqno);
 uint8_t get_in_interrupt();
+
+extern gdt_desc_t *get_gdt();

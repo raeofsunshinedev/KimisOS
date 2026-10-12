@@ -235,7 +235,7 @@ DAP:
         dd 1
         dd 0
 GDT_desc:
-    .size: dw GD_TABLE-GD_END - 1
+    .size: dw GD_END - GD_TABLE - 1
     .offset: dd GD_TABLE
 GD_TABLE:
     .null:

@@ -40,3 +40,4 @@ void set_pid_unblocked(uint32_t pid);
 uint32_t get_current_pid();
 
 int exec(char *filename, char **argv, uint32_t argc);
+void kill(uint32_t pid);

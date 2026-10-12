@@ -47,12 +47,13 @@ typedef struct{
 
 #define PROG_ENT_FLAGS_EXE 1
 #define PROG_ENT_FLAGS_WRITE 2
-#define PROG_END_FLAGS_READ 4
+#define PROG_ENT_FLAGS_READ 4
 
-#define ELF_TYPE_RELOC 1
-#define ELF_TYPE_EXE 2
-#define ELF_TYPE_SHARED 3
-#define ELF_TYPE_CORE 4
+#define PROG_ENT_NULL 0
+#define PROG_ENT_LOAD 1
+#define PROG_ENT_DYN 2
+#define PROG_ENT_INTERP 3
+
 //expects a buffer of the file data already prepared
 void *load_elf_dynamic(void *file_data, uint32_t map_flags);
 //expects a vfile_t *

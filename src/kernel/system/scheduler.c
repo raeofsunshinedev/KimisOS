@@ -137,18 +137,11 @@ int exec(char *filename, char **argv, uint32_t argc){
     
     if(!program) return -1;
     
-    //clear address space from 0 to kerne base
-    uint32_t *pd = (uint32_t*)0xfffff000;
-    for(uint32_t i = 1; i < (0xc0000000 >> 22) - 1; i++){
-        pd[i] = 0;
-        asm volatile("invlpg (%0)" : : "b"(0xffc00000 + (i * 0x400)) : "memory");
-    }
-    uint32_t *pt = (uint32_t *)(0xffc00000);
-    //mark the null page as not present
-    pt[0] = 0;
-    asm volatile("invlpg (%0)" : : "b"(0) : "memory");
+    unmap(0);
     
-    load_elf(program, PT_PRESENT);
+    void (*entry)() = load_elf(program, PT_PRESENT);
+    
+    entry();
     
     return 0;
 }
@@ -160,7 +153,7 @@ void kill(uint32_t pid){
     // kfree(pd_ptr);
     // map(pd_ptr, pd, PT_PRESENT);
     uint32_t *pd_ptr = kmalloc_page_paddr(pd, 1);
-    for(uint32_t i = 0; i < 1024; i++){
+    for(uint32_t i = 0; i < (0xc0000000 >> 22); i++){
         // map(pt_ptr, (void *)pd_ptr[i], PT_PRESENT);
         uint32_t *pt_ptr = kmalloc_page_paddr(pd_ptr[i], 1);
         for(uint32_t j = 0; j < 1024; j++){
@@ -168,10 +161,17 @@ void kill(uint32_t pid){
             pm_free(pt_paddr);
         }
         kfree(pt_ptr);
+        pm_free((pd_ptr[i] & ~0xfff));
+        pd_ptr[i] = 0;
     }
+    kfree(pd_ptr);
+    pm_free(pd);
     processes[pid].flags.present = 0;
     processes[pid].page_dir = 0;
+    printf("Removing from queue\n");
     remove_process_queue(pid);
+    printf("Returning!\n");
+    return;
 }
 
 void set_pid_blocked(uint32_t pid){

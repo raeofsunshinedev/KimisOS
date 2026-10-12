@@ -290,6 +290,8 @@ void map(void *vaddr, void *paddr, uint32_t flags){
     uint32_t pt_index = (uint32_t)vaddr >> 12 & 0x3ff;
     
     uint32_t *pd = (uint32_t*)0xfffff000;
+    uint32_t uflags = flags & PT_USER | flags & PT_USER_RW;
+    // printf("Mapping %x to %x with flags %x\n", vaddr, paddr, flags);
     if(!pd[pd_index]){
         pd[pd_index] = pm_alloc() | 1;
         // printf("allocating %x\n", pd[pd_index]);
@@ -297,6 +299,11 @@ void map(void *vaddr, void *paddr, uint32_t flags){
         uint32_t *pt = (uint32_t *)(0xffc00000 + (pd_index * 0x1000));
         for(uint32_t i = 0; i < 0x400; i++)pt[i] = 0;
     }
+    
+    if((uflags & pd[pd_index]) != uflags && (uint32_t) vaddr < 0xc0000000){
+        pd[pd_index] |= uflags;
+    }
+    
     uint32_t *pt = (uint32_t *)(0xffc00000 + (pd_index * 0x1000));
     // printf("%x %x\n", vaddr, paddr);
     pt[pt_index] = (uint32_t)paddr | flags;
