@@ -366,12 +366,21 @@ panic_hold:
 
 
 global get_gdt
-
+global load_tss
 get_gdt:
     sgdt [gdt_desc]
     mov eax, gdt_desc
     ret
-
+load_tss:
+    call get_gdt
+    lgdt [eax]
+    
+    mov eax, [esp+4]
+    mul ax, 8
+    ltr ax
+    mov eax, 0
+    ret
+    
 section .data
 align 4
 gdt_desc:

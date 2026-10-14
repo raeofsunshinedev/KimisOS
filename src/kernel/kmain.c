@@ -29,14 +29,7 @@ void sysinit(){
     read_initrd(boot_info->initrd);
     modules_init();
     
-    gdt_desc_t *gdt_desc = get_gdt();
-    printf("GDT TEST\nLimit: %x, Pointer: %x\n", gdt_desc->size, gdt_desc->ptr);
-    
-    uint64_t *gdt = (void*)gdt_desc->ptr;
-    
-    printf("TSS: %x %x, AT:%x\n", (uint32_t)(gdt[6]>>32), (uint32_t)gdt[6], &gdt[6]);
-    
-    for(;;);
+    tss_init(6);//set up that way in the bootloader.
     
     vfile_t *initrc = fopen("/boot/initrc.conf");
     mlog("RAE", "\033[1;32mDid you remember to migrate your modules to the new API?\033[0m\n", MLOG_PRINT);

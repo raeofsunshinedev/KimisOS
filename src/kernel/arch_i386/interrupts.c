@@ -2,6 +2,9 @@
 #include "../system/scheduler.h"
 #include "../drivers/serial.h"
 #include "../drivers/cpuio.h"
+#include "../shared/kstdlib.h"
+#include "../shared/memory.h"
+#include "../shared/string.h"
 #include <stdint.h>
 
 uint8_t in_interrupt = 0;
@@ -96,6 +99,9 @@ cpu_registers_t *_irq_handler(cpu_registers_t *regs){
         outb(0xa0, 0x20);
     }
     in_interrupt = 0;
+    
+    //update TSS
+    
     return regs;
 }
 
@@ -103,14 +109,15 @@ char *isr_error_strings[] = {"DE", "DB", "NMI", "BP", "OF", "BR", "UD", "NM", "D
 
 void *_isr_handler(cpu_registers_t *regs){
     printf("ISR: #%s\n", isr_error_strings[regs->int_no]);
-    if(regs->int_no != 0xa && regs->int_no != 0x8){
-        uint32_t old_pid = get_current_pid();
-        kill(get_current_pid());
-        regs = schedule(regs);
-        uint32_t new_pid = get_current_pid();
-        
-        return regs;
-    }
+    // if(regs->int_no != 0xa && regs->int_no != 0x8){
+        // uint32_t old_pid = get_current_pid();
+        // kill(get_current_pid());
+        // regs = schedule(regs);
+        // uint32_t new_pid = get_current_pid();
+        // 
+        // for(;;);
+        // return regs;
+    // }
     printf("Kernel Panic!\n");
     printf("EAX: %x EBX: %x ECX: %x EDX: %x\n", regs->eax, regs->ebx, regs->ecx, regs->edx);
     printf("ESI: %x EDI: %x ESP: %x EBP: %x\n", regs->esi, regs->edi, regs->esp, regs->ebp);
@@ -176,6 +183,48 @@ uint32_t pit_init(uint32_t freq){
     pit_reload(0b100, reload_value);
     uint32_t ms = (reload_value * 3000)/3579545;
     return ms;
+}
+
+void *tss_vaddr = 0;
+
+void *get_tss(){
+    return tss_vaddr;
+}
+
+//Allocates space for TSS
+void tss_init(uint32_t entry_no){
+    mlog("KERNEL", "Setting Up TSS\n", MLOG_PRINT);
+    
+    tss_entry_t *tss = kmalloc(1);
+    tss_vaddr = tss;
+    
+    gdt_desc_t *gdt_desc = get_gdt();
+    printf("GDT TEST\nLimit: %x, Pointer: %x\n", gdt_desc->size, gdt_desc->ptr);
+    
+    gdt_entry_t *gdt = (void*)gdt_desc->ptr;
+    
+    gdt_entry_t *tss_entry = &gdt[entry_no];
+    
+    tss_entry->base_low = (uint32_t)(tss) & 0xffff;
+    tss_entry->base_med = ((uint32_t)(tss) >> 16) & 0xff;
+    tss_entry->base_high = ((uint32_t)(tss) >> 24) & 0xff;
+    tss_entry->limit_low = (uint16_t)sizeof(tss_entry_t);
+    tss_entry->limit = ((uint8_t)sizeof(tss_entry_t) >> 16);
+    
+    tss_entry->access.system_segment.sd_type = GDT_SYSSEG_TSS32A;
+    tss_entry->access.system_segment.type = 0;
+    tss_entry->access.system_segment.dpl=0;
+    tss_entry->access.system_segment.present=1;
+    tss_entry->flags = 0;
+    
+    memclr((char*)tss, sizeof(tss_entry_t));
+    
+    tss->ss0 = 0x18;
+    tss->esp0 = (uint32_t)(kmalloc(16) + PAGE_SIZE_BYTES * 16);//stack grows down
+    
+    load_tss(entry_no);
+    // gdt_entry_t 
+    
 }
 
 void idt_load(){
