@@ -109,5 +109,7 @@ uint8_t get_in_interrupt();
 extern gdt_desc_t *get_gdt();
 extern void load_tss(uint32_t segment_entry);
 
-void tss_init(uint32_t entry_no);
-void *get_tss();
+extern void tss_init(uint32_t entry_no);
+extern void *get_tss();
+
+extern void jump_usermode(void *esp, void *eip);

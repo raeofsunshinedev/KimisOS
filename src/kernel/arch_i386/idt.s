@@ -204,7 +204,7 @@ _isr_common_stub:
     push es
     push fs
     push gs
-    mov ax, 0x10
+    mov ax, 0x18
     mov ds, ax
     mov es, ax
     mov fs, ax
@@ -328,12 +328,18 @@ _syscall:
     push dword 0
     push dword 0x80
 
-_irq_common_stub:
+_irq_common_stub:   
     pushad
     push ds
     push es
     push fs
     push gs
+    
+    mov ax, 0x18
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
     
     push esp;push argument
     call _irq_handler
@@ -367,6 +373,7 @@ panic_hold:
 
 global get_gdt
 global load_tss
+global jump_usermode
 get_gdt:
     sgdt [gdt_desc]
     mov eax, gdt_desc
@@ -381,6 +388,43 @@ load_tss:
     mov eax, 0
     ret
     
+%define UMODE_CODE 32 | 3
+%define UMODE_DATA 40 | 3
+
+;ARGS (In order)
+;stack address
+;eip
+jump_usermode:
+    push ebp
+    mov ebp, esp
+    
+    mov ax, UMODE_DATA
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    
+    mov edx, [ebp + 12]
+    mov eax, [ebp + 8]
+    mov ebx, esp
+    mov esp, eax
+    push UMODE_DATA
+    push eax
+    pushf
+    push UMODE_CODE
+    push edx
+    mov ebp, eax
+    
+    xor eax,eax
+    xor ecx, ecx
+    xor edx, edx
+    xor ebx, ebx
+    xor esi, esi
+    xor edi, edi
+    ; jmp $
+    sti
+    iret
+
 section .data
 align 4
 gdt_desc:

@@ -141,7 +141,12 @@ int exec(char *filename, char **argv, uint32_t argc){
     
     void (*entry)() = load_elf(program, PT_PRESENT);
     
-    entry();
+    map(entry - 0x39000, (void*)pm_alloc(), PT_PRESENT | PT_USER | PT_USER_RW);
+    map(entry - 0x40000, (void*)pm_alloc(), PT_PRESENT | PT_USER | PT_USER_RW);
+    map(entry - 0x41000, (void*)pm_alloc(), PT_PRESENT | PT_USER | PT_USER_RW);
+    // entry();
+    // for(;;);
+    jump_usermode(entry-0x40004, entry);
     
     return 0;
 }

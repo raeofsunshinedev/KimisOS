@@ -3,6 +3,12 @@ segment .text
 global _start
 
 _start:
+    mov ax, 0xaa55
+    mov bx, ax
+    mov cx, ax
+    mov dx, ax
+    
+    ; jmp $
     mov edi, 0xb8000
     mov esi, string
     xor ebx, ebx
