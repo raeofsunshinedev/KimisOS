@@ -3,7 +3,7 @@ segment .text
 global _start
 
 _start:
-    mov ax, 0x55aa
+    mov ax, 0x1234
     int 0x80
 end:
     jmp $

@@ -102,22 +102,23 @@ cpu_registers_t *_irq_handler(cpu_registers_t *regs){
     
     //update TSS
     
+    reset_tss_stack();
     return regs;
 }
 
 char *isr_error_strings[] = {"DE", "DB", "NMI", "BP", "OF", "BR", "UD", "NM", "DF", "CSO", "TS", "NP", "SS", "GP", "PF", "", "MF", "AC", "MC", "XM", "VE", "CP", ""};
 
 void *_isr_handler(cpu_registers_t *regs){
-    printf("ISR: #%s\n", isr_error_strings[regs->int_no]);
-    // if(regs->int_no != 0xa && regs->int_no != 0x8){
-        // uint32_t old_pid = get_current_pid();
-        // kill(get_current_pid());
-        // regs = schedule(regs);
-        // uint32_t new_pid = get_current_pid();
-        // 
-        // for(;;);
-        // return regs;
-    // }
+    printf("ISR: #%s On pid: %d\n", isr_error_strings[regs->int_no], get_current_pid());
+    if(regs->int_no != 0xa && regs->int_no != 0x8){
+        uint32_t old_pid = get_current_pid();
+        kill(get_current_pid());
+        regs = schedule(regs);
+        uint32_t new_pid = get_current_pid();
+        
+        for(;;);
+        return regs;
+    }
     printf("Kernel Panic!\n");
     printf("EAX: %x EBX: %x ECX: %x EDX: %x\n", regs->eax, regs->ebx, regs->ecx, regs->edx);
     printf("ESI: %x EDI: %x ESP: %x EBP: %x\n", regs->esi, regs->edi, regs->esp, regs->ebp);
@@ -186,9 +187,17 @@ uint32_t pit_init(uint32_t freq){
 }
 
 void *tss_vaddr = 0;
+void *tss_esp0 = 0;
 
 void *get_tss(){
     return tss_vaddr;
+}
+
+void reset_tss_stack(){
+    tss_entry_t *tss = get_tss();
+    if(!tss) return;
+    tss->esp0 = tss_esp0;
+    tss->ss = 0x18;
 }
 
 //Allocates space for TSS
@@ -199,7 +208,6 @@ void tss_init(uint32_t entry_no){
     tss_vaddr = tss;
     
     gdt_desc_t *gdt_desc = get_gdt();
-    printf("GDT TEST\nLimit: %x, Pointer: %x\n", gdt_desc->size, gdt_desc->ptr);
     
     gdt_entry_t *gdt = (void*)gdt_desc->ptr;
     
@@ -220,7 +228,8 @@ void tss_init(uint32_t entry_no){
     memclr((char*)tss, sizeof(tss_entry_t));
     
     tss->ss0 = 0x18;
-    tss->esp0 = (uint32_t)(kmalloc(16) + PAGE_SIZE_BYTES * 16);//stack grows down
+    tss->esp0 = (uint32_t)(kmalloc(16) + PAGE_SIZE_BYTES * 16-4);//stack grows down
+    tss_esp0 = tss->esp0;
     
     load_tss(entry_no);
     // gdt_entry_t 
@@ -270,7 +279,9 @@ void idt_load(){
         set_idt_entry(i + 32, (&_irq0 + ((&_irq1 - &_irq0) * i)), IDT_GATE_INT, 0x10);
         // printf("int %d: address: %x\n", i + 32, _irq0 + (_irq1 - _irq0) * i);
     }
-    set_idt_entry(0x80, _syscall, IDT_GATE_INT, 0x10);
+    tss_vaddr = 0;
+    //set DPL to ring 3 to allow userspace to execute the syscall
+    set_idt_entry(0x80, _syscall, IDT_GATE_INT | (3 << 5), 0x10);
     
     idt_desc.pointer = (uint32_t)&idt_table;
     idt_desc.size = sizeof(idt_entry_t) * 256 - 1;

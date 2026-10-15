@@ -113,3 +113,5 @@ extern void tss_init(uint32_t entry_no);
 extern void *get_tss();
 
 extern void jump_usermode(void *esp, void *eip);
+
+extern void reset_tss_stack();

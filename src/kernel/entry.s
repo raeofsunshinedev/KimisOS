@@ -14,5 +14,8 @@ _start:
     jmp $
     
 section .bss
+global esp0_stack_top
 stack_bottom: resb 0x10000
 stack_top:
+esp0_stack_bottom: resb 0x8000
+esp0_stack_top:

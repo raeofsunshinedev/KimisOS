@@ -4,6 +4,8 @@
 #include "../drivers/serial.h"
 #include "interrupts.h"
 
+extern void *esp0_stack_top;
+
 #define true 1
 #define false 0
 

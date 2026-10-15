@@ -383,7 +383,7 @@ load_tss:
     lgdt [eax]
     
     mov eax, [esp+4]
-    mul ax, 8
+    imul ax, 8
     ltr ax
     mov eax, 0
     ret
@@ -408,10 +408,10 @@ jump_usermode:
     mov eax, [ebp + 8]
     mov ebx, esp
     mov esp, eax
-    push UMODE_DATA
+    push dword UMODE_DATA
     push eax
     pushf
-    push UMODE_CODE
+    push dword UMODE_CODE
     push edx
     mov ebp, eax
     

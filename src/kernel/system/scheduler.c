@@ -144,10 +144,13 @@ int exec(char *filename, char **argv, uint32_t argc){
     map(entry - 0x39000, (void*)pm_alloc(), PT_PRESENT | PT_USER | PT_USER_RW);
     map(entry - 0x40000, (void*)pm_alloc(), PT_PRESENT | PT_USER | PT_USER_RW);
     map(entry - 0x41000, (void*)pm_alloc(), PT_PRESENT | PT_USER | PT_USER_RW);
+    map(entry - 0x42000, (void*)pm_alloc(), PT_PRESENT | PT_USER | PT_USER_RW);
+    map(entry - 0x43000, (void*)pm_alloc(), PT_PRESENT | PT_USER | PT_USER_RW);
+    map(entry - 0x44000, (void*)pm_alloc(), PT_PRESENT | PT_USER | PT_USER_RW);
     // entry();
     // for(;;);
-    jump_usermode(entry-0x40004, entry);
-    
+    jump_usermode(entry-0x40000, entry);
+    // while(1);
     return 0;
 }
 void kill(uint32_t pid){
@@ -198,7 +201,7 @@ uint32_t thread_start(void (*function)()){
     regs.es = 0x18;
     regs.ss = 0x18;
     regs.eflags = 0x202;
-    regs.esp = (uint32_t)kmalloc(8) - sizeof(regs) + 8;
+    regs.esp = ((uint32_t)kmalloc(8) + PAGE_SIZE_BYTES * 8) - 4 - sizeof(regs);
     regs.ebp = regs.esp;
     regs.eip = (uint32_t)function;
     memcpy((char *)&regs, (char*)regs.esp, sizeof(regs));
