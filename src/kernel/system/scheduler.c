@@ -158,7 +158,8 @@ void kill(uint32_t pid){
     // kfree(pd_ptr);
     // map(pd_ptr, pd, PT_PRESENT);
     uint32_t *pd_ptr = kmalloc_page_paddr(pd, 1);
-    for(uint32_t i = 0; i < (0xc0000000 >> 22); i++){
+    //last 4 pages are id mapped
+    for(uint32_t i = (0x400000 >> 22); i < (0xc0000000 >> 22); i++){
         // map(pt_ptr, (void *)pd_ptr[i], PT_PRESENT);
         uint32_t *pt_ptr = kmalloc_page_paddr(pd_ptr[i], 1);
         for(uint32_t j = 0; j < 1024; j++){

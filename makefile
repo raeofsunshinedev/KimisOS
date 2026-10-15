@@ -7,7 +7,7 @@ LDFLAGS_MODULE:=-melf_i386 -e init --no-dynamic-linker -static -nostdlib
 SRCS := $(wildcard src/kernel/*/*.c)
 OBJS := $(patsubst src/kernel/%.c, bin/kernel/%.o, $(SRCS))
 
-all: bootloader tools kernel
+all: bootloader tools kernel shell
 	cp bin/bootloader.bin image.bin
 	qemu-img resize -f raw image.bin 64M
 	tar --format=ustar -cf initrd.rd idm.elf ifsm.elf part_mgr.elf initrc.conf 
@@ -15,7 +15,7 @@ all: bootloader tools kernel
 	./diskwrite initrd.rd kernel.elf -o image.bin
 	sudo mount image.bin mount
 	sudo cp resources/longfilenametest.txt mount/longfilenametest.txt
-	sudo cp resources/exectest mount/exectest
+	sudo cp bin/shell/exectest mount/exectest
 	sudo cp resources/hellofat.txt mount/hellofat.txt
 	sudo umount mount
 # 	sudo mkdir mount/mod # for kernel modules
@@ -25,6 +25,10 @@ all: bootloader tools kernel
 	# ./diskwrite -v -l kernel.elf idm.elf -o image.bin
 	qemu-system-i386 -hda image.bin -hdb test.bin --no-reboot --no-shutdown -m 256m -smp 2 -serial mon:stdio -D intlog.txt -d int
 # 	sudo umount mount
+
+shell:
+	nasm -f elf32 resources/exectest.s -o bin/shell/exectest.o
+	ld -melf_i386 bin/shell/exectest.o -o bin/shell/exectest
 
 tools:
 	$(CC) tools/diskwrite.c -o diskwrite
@@ -67,6 +71,7 @@ init:
 	mkdir bin/boot
 	mkdir bin/kernel
 	mkdir bin/modules
+	mkdir bin/shell
 	touch test.bin
 	qemu-img resize test.bin 64M
 

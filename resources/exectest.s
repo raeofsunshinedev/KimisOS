@@ -3,30 +3,9 @@ segment .text
 global _start
 
 _start:
-    mov ax, 0xaa55
-    mov bx, ax
-    mov cx, ax
-    mov dx, ax
-    
-    ; jmp $
-    mov edi, 0xb8000
-    mov esi, string
-    xor ebx, ebx
-    mov ah, 0x0f
-printstr:
-    lodsb
-    cmp al, 0
-    je end
-    mov [edi + ebx * 2], ax
-    inc bx
-    jmp printstr
+    mov ax, 0x55aa
+    int 0x80
 end:
-    xor eax, eax
-    mov ax, ss
-    int 0
-    xor ecx, ecx
-    div ecx
-    mov [eax], 81
     jmp $
 segment .data
 string: db "Hello, World!", 0x0

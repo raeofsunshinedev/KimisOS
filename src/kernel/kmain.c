@@ -22,6 +22,17 @@ void pid0(){
     for(;;);
 }
 
+void testthread(){
+    // volatile uint32_t i = 0;
+    // asm("cli");
+    // for(;;) i++;
+    // while(1){
+    //     if(i % 1000 != 0) continue;
+    //     printf("Test Thread on iteration: %x\n", i++);
+    // }
+    for(;;);
+}
+
 void sysinit(){
     mlog("KERNEL", "PID 1 Started\n", MLOG_PRINT);
     pci_init();
@@ -29,7 +40,9 @@ void sysinit(){
     read_initrd(boot_info->initrd);
     modules_init();
     
+    
     tss_init(6);//set up that way in the bootloader.
+    thread_start(testthread);
     
     vfile_t *initrc = fopen("/boot/initrc.conf");
     mlog("RAE", "\033[1;32mDid you remember to migrate your modules to the new API?\033[0m\n", MLOG_PRINT);
