@@ -121,13 +121,44 @@ uint32_t spawn_new_process(cpu_registers_t defaultregs, char **argv, uint32_t ar
     add_process_queue_nolock(i);
     // asm("sti");
     spinlock_release(&proc_lock);
+    printf("Spawned pid %d at eip %x\n", i, defaultregs.eip);
     return i;
 }
 
-void fork(){
-    //make a copy of original process, create new address space,
-    //and copy all page entries with write disabled
-    //(so we con perform a copy on write)
+uint32_t get_pid_pd(uint32_t pid){
+    return processes[pid].page_dir;
+}
+
+void fork(cpu_registers_t *oldregs){
+    cpu_registers_t regs = {0};
+    regs = *oldregs;
+    regs.eax = 0;
+    
+    intptr_t new_pd = pm_alloc();
+    intptr_t *new_pd_ptr = kmalloc_page_paddr(new_pd, 1);
+    
+    mapdup_full(new_pd_ptr);
+    
+    char *stack = kmalloc_page_paddr(get_paddr((void*)oldregs->esp) - 4096, 2);
+    
+    memcpy((char *)&regs, stack, sizeof(regs));
+    unmap(new_pd_ptr);
+    unmap(stack);
+    unmap(stack - PAGE_SIZE_BYTES);
+    // regs.esp = ((uint32_t)kmalloc(8) + PAGE_SIZE_BYTES * 8) - 4 - sizeof(regs);
+    // regs.ebp = regs.esp;
+    // regs.eip = (uint32_t)function;
+    uint32_t retpid = spawn_new_process(regs, 0, 0, (void*)new_pd);
+    
+    processes[retpid] = processes[current_pid];
+    processes[retpid].cpuregs = regs;
+    processes[retpid].parent = current_pid;
+    processes[retpid].page_dir = new_pd;
+    
+    printf("New process forked: EIP:%x, CR3: %x\n", regs.eip, new_pd);
+    oldregs->eax = retpid;
+    
+    return;
 }
 int exec(char *filename, char **argv, uint32_t argc){
     //open and read file {filename}
@@ -135,21 +166,32 @@ int exec(char *filename, char **argv, uint32_t argc){
     //a new schedulable entity
     vfile_t *program = fopen(filename);
     
+    uint32_t pd = (uint32_t)processes[current_pid].page_dir;
+    
+    uint32_t *pd_ptr = kmalloc_page_paddr(pd, 1);
+    
     if(!program) return -1;
     
-    unmap(0);
+    for(uint32_t i = (0x400000 >> 22); i < (0xc0000000 >> 22); i++){
+        // map(pt_ptr, (void *)pd_ptr[i], PT_PRESENT);
+        uint32_t *pt_ptr = kmalloc_page_paddr(pd_ptr[i], 1);
+        for(uint32_t j = 0; j < 1024; j++){
+            pt_ptr[j] = 0;
+        }
+        kfree(pt_ptr);
+        pd_ptr[i] = 0;
+    }
+    kfree(pd_ptr);
     
     void (*entry)() = load_elf(program, PT_PRESENT);
     
-    map(entry - 0x39000, (void*)pm_alloc(), PT_PRESENT | PT_USER | PT_USER_RW);
-    map(entry - 0x40000, (void*)pm_alloc(), PT_PRESENT | PT_USER | PT_USER_RW);
-    map(entry - 0x41000, (void*)pm_alloc(), PT_PRESENT | PT_USER | PT_USER_RW);
-    map(entry - 0x42000, (void*)pm_alloc(), PT_PRESENT | PT_USER | PT_USER_RW);
-    map(entry - 0x43000, (void*)pm_alloc(), PT_PRESENT | PT_USER | PT_USER_RW);
-    map(entry - 0x44000, (void*)pm_alloc(), PT_PRESENT | PT_USER | PT_USER_RW);
+    void *stack = entry - 0x10000;
+    for(uint32_t i = 0; i < 32; i++){
+        map(stack - i * PAGE_SIZE_BYTES, (void*)pm_alloc(), PT_USER_RW | PT_USER | PT_PRESENT);
+    }
     // entry();
     // for(;;);
-    jump_usermode(entry-0x40000, entry);
+    jump_usermode(stack - 4, entry);
     // while(1);
     return 0;
 }
@@ -177,9 +219,9 @@ void kill(uint32_t pid){
     pm_free(pd);
     processes[pid].flags.present = 0;
     processes[pid].page_dir = 0;
-    printf("Removing from queue\n");
+    // printf("Removing from queue\n");
     remove_process_queue(pid);
-    printf("Returning!\n");
+    // printf("Returning!\n");
     return;
 }
 

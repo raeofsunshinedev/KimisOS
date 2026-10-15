@@ -71,6 +71,7 @@ void unmap(void *vaddr);
 void map_4mb(void *vaddr, void* paddr, uint32_t flags);
 uint32_t get_paddr(void *addr);
 uint32_t pm_alloc();
+uint32_t get_pflags(void *vaddr);
 void pm_reserve(uint32_t addr);
 void pm_free(uint32_t addr);
 uint32_t pm_alloc_64kaligned();
@@ -95,3 +96,13 @@ uint32_t heap_init(uint32_t size_bytes);
 uint32_t get_used_memory();
 uint32_t get_free_memory();
 uint32_t checksum_pm_map();
+
+//duplicate all mappings into new address space
+//EXPECTS NEW PAGE DIRECTORY TO ALREADY BE MAPPED
+//DO NOT PASS PHYSICAL ADDRESS
+void mapdup_full(void *pd);
+
+//Maps address in pd
+//EXPECTS NEW PAGE DIRECTORY TO ALREADY BE MAPPED
+//DO NOT PASS PHYSICAL ADDRESS
+void map_in_pd(void *vaddr, void *paddr, uint32_t flags, void *pd);

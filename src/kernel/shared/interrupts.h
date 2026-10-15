@@ -115,3 +115,17 @@ extern void *get_tss();
 extern void jump_usermode(void *esp, void *eip);
 
 extern void reset_tss_stack();
+
+enum KOS_INTERRUPTS{
+    KOS_INT_EXIT,
+    KOS_INT_OPEN,
+    KOS_INT_CLOSE,
+    KOS_INT_READ,
+    KOS_INT_WRITE,
+    KOS_INT_REMOVE,
+    KOS_INT_CREATE,
+    KOS_INT_FORK,
+    KOS_INT_EXEC,
+    KOS_INT_MMAP,
+    KOS_INT_SBRK,
+};

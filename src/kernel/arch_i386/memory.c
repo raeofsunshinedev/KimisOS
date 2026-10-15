@@ -3,6 +3,7 @@
 #include "../shared/kstdlib.h"
 #include "../shared/spinlock.h"
 #include "../drivers/cpuio.h"
+#include "../shared/string.h"
 #define mmap_count 0x20000
 
 uint8_t volatile pm_map[mmap_count];
@@ -382,7 +383,7 @@ void *kmalloc(uint32_t size_pgs){
             continue;
         }
         for(uint32_t j = 0; j < size_pgs; j++){
-            uint32_t flags = PT_PRESENT | PT_SYS | (PT_LINK_L * (j != 0)) | (PT_LINK_N * (j < (size_pgs - 1)) | PT_PCD);
+            uint32_t flags = PT_PRESENT  | (PT_LINK_L * (j != 0)) | (PT_LINK_N * (j < (size_pgs - 1)) | PT_PCD);
             uint32_t physaddr = pm_alloc();
             if(physaddr == 0){
                 kfree((void *)(i<<22));
@@ -415,7 +416,7 @@ void *kmalloc_page_paddr(uint32_t paddr, uint32_t size_pgs){
             continue;
         }
         for(uint32_t j = 0; j < size_pgs; j++){
-            uint32_t flags = PT_PRESENT | PT_SYS | (PT_LINK_L * (j != 0)) | (PT_LINK_N * (j < (size_pgs - 1)) | PT_PCD);
+            uint32_t flags = PT_PRESENT | (PT_LINK_L * (j != 0)) | (PT_LINK_N * (j < (size_pgs - 1)) | PT_PCD);
             uint32_t physaddr = paddr + j * 4096;
 
             map((void *)((i + j) << 12), (void*)physaddr, flags);
@@ -452,4 +453,74 @@ void *kfree(void *vaddr){
     }
     spinlock_release(&page_lock);
     return 0;
+}
+
+void mapdup_full(void *pd){
+    uint32_t *new_pd_ptr = pd;
+    memclr(pd, PAGE_SIZE_BYTES);
+    uint32_t *old_pd_ptr = (uint32_t*) 0xfffff000;
+    for(uint32_t i = 1; i < (0xc0000000 >> 22); i++){
+        // map(pt_ptr, (void *)pd_ptr[i], PT_PRESENT);
+        uint32_t old_pd_flags = old_pd_ptr[i] & 0xfff;
+        
+        if(!(old_pd_flags & PD_PRESENT)){
+            continue;
+        }
+        
+        new_pd_ptr[i] = pm_alloc() | old_pd_flags;
+        
+        if(new_pd_ptr[i] < PAGE_SIZE_BYTES){
+            PANIC("Out of memory!\n");
+        }
+        
+        // new_pd_ptr[i] = old_pd_ptr[i];
+        uint32_t *old_pt_ptr = (uint32_t *)(0xffc00000 + (i * 0x1000));
+        uint32_t *new_pt_ptr = kmalloc_page_paddr(new_pd_ptr[i], 1);
+        for(uint32_t j = 0; j < 1024; j++){
+            //screw copy on write (for now)
+            uint32_t old_pt_flags = old_pt_ptr[j] & 0xfff;
+            new_pt_ptr[j] = 0;
+            if(old_pt_ptr[j] &&  old_pt_ptr[j] & PT_PRESENT){
+                new_pt_ptr[j] = pm_alloc() | old_pt_flags;
+                
+                if(new_pt_ptr[j] < PAGE_SIZE_BYTES){
+                    PANIC("Out of memory!\n");
+                }
+                
+                void *cpy = kmalloc_page_paddr(new_pt_ptr[j] & ~0xfff, 1);
+                void *addr = (void*)(i << 22 | j << 12);
+                memcpy(addr, cpy, PAGE_SIZE_BYTES);
+                unmap(cpy);
+            }
+            
+            // new_pt_ptr[j] = old_pt_ptr[j] & ~PT_USER_RW;
+        }
+        unmap(new_pt_ptr);
+    }
+    for(int i = (0xc0000000 >> 22); i < 1024; i++){
+        new_pd_ptr[i] = old_pd_ptr[i];
+    }
+    new_pd_ptr[0] = old_pd_ptr[0];
+    new_pd_ptr[1023] = get_paddr(pd) | PT_PRESENT;
+    unmap(new_pd_ptr);
+    return;
+}
+
+void map_in_pd(void *vaddr, void *paddr, uint32_t flags, void *pd){
+    uint32_t pd_index = (uint32_t)vaddr >> 22;
+    uint32_t pt_index = (uint32_t)vaddr >> 12 & 0x3ff;
+    
+    uint32_t *pd_ptr = pd;
+    uint32_t *pt_ptr;
+    if(!pd_ptr[pd_index] & PD_PRESENT){
+        pd_ptr[pd_index] = pm_alloc() | (flags & 0x7f);
+        pt_ptr = kmalloc_page_paddr(pd_ptr[pd_index], 1);
+        for(uint32_t i = 0; i < 0x400; i++)pt_ptr[i] = 0;
+    }
+    else{
+        pt_ptr = kmalloc_page_paddr(pd_ptr[pd_index], 1);
+    }
+    pt_ptr[pt_index] = ((uint32_t)paddr | flags);
+    unmap(pt_ptr);
+    return;
 }
