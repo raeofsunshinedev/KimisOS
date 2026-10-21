@@ -28,6 +28,7 @@ typedef struct{
     uint32_t gid;
     intptr_t brk;
     intptr_t stack_start;
+    void* esp0;
 }process_t;
 
 #define PROCESS_COUNT 0x10000
@@ -40,6 +41,8 @@ void thread_exit(uint32_t exit_code);
 void set_pid_blocked(uint32_t pid);
 void set_pid_unblocked(uint32_t pid);
 uint32_t get_current_pid();
+
+void *get_pid_esp0(uint32_t pid);
 
 uint32_t get_pid_pd(uint32_t pid);
 

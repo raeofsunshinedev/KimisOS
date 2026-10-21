@@ -42,7 +42,7 @@ void sysinit(){
     
     
     tss_init(6);//set up that way in the bootloader.
-    thread_start(testthread);
+    // thread_start(testthread);
     
     vfile_t *initrc = fopen("/boot/initrc.conf");
     mlog("RAE", "\033[1;32mDid you remember to migrate your modules to the new API?\033[0m\n", MLOG_PRINT);

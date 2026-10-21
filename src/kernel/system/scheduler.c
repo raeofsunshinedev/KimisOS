@@ -125,8 +125,8 @@ uint32_t spawn_new_process(cpu_registers_t defaultregs, char **argv, uint32_t ar
     return i;
 }
 
-uint32_t get_pid_pd(uint32_t pid){
-    return processes[pid].page_dir;
+uintptr_t get_pid_pd(uint32_t pid){
+    return (uintptr_t)processes[pid].page_dir;
 }
 
 void fork(cpu_registers_t *oldregs){
@@ -153,13 +153,18 @@ void fork(cpu_registers_t *oldregs){
     processes[retpid] = processes[current_pid];
     processes[retpid].cpuregs = regs;
     processes[retpid].parent = current_pid;
-    processes[retpid].page_dir = new_pd;
+    processes[retpid].page_dir = (void *)new_pd;
     
     printf("New process forked: EIP:%x, CR3: %x\n", regs.eip, new_pd);
     oldregs->eax = retpid;
     
     return;
 }
+
+void *get_pid_esp0(uint32_t pid){
+    return (void*)processes[pid].esp0;
+}
+
 int exec(char *filename, char **argv, uint32_t argc){
     //open and read file {filename}
     //then create a new address space, parse elf header and create
@@ -186,11 +191,21 @@ int exec(char *filename, char **argv, uint32_t argc){
     void (*entry)() = load_elf(program, PT_PRESENT);
     
     void *stack = entry - 0x10000;
+    void *esp0 = (void *)(0xc0000000 - 0x10000);
+    // asm volatile("pushf\ncli");
     for(uint32_t i = 0; i < 32; i++){
         map(stack - i * PAGE_SIZE_BYTES, (void*)pm_alloc(), PT_USER_RW | PT_USER | PT_PRESENT);
     }
+    //probably overkill for a syscall stack
+    for(uint32_t i = 0; i < 8; i++){
+        map(esp0 - i * PAGE_SIZE_BYTES, (void*)pm_alloc(), PT_PRESENT);
+    }
+    // asm volatile("popf");
     // entry();
     // for(;;);
+    printf("Assigning ESP0: %x\n", esp0);
+    processes[current_pid].esp0 = esp0;
+    
     jump_usermode(stack - 4, entry);
     // while(1);
     return 0;
@@ -249,6 +264,7 @@ uint32_t thread_start(void (*function)()){
     memcpy((char *)&regs, (char*)regs.esp, sizeof(regs));
     uint32_t retpid = spawn_new_process(regs, 0, 0, (void *)0x10000);
     processes[retpid].parent = current_pid;
+    processes[retpid].esp0 = (void*)regs.esp;
     return retpid;
 }
 void thread_join(uint32_t thread_id, uint32_t *exit_code){

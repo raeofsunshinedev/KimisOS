@@ -62,6 +62,9 @@ typedef struct idt_entry{
 cpu_registers_t *(*volatile interrupt_handlers[16])(cpu_registers_t *regs) = {0};
 idt_t idt_desc;
 
+void *tss_vaddr = 0;
+void *tss_esp0 = 0;
+
 idt_entry_t idt_table[256];
 
 inline void set_idt_entry(uint32_t index, void *ptr, uint8_t flags, uint16_t segment){
@@ -100,7 +103,7 @@ cpu_registers_t *_irq_handler(cpu_registers_t *regs){
     }
     in_interrupt = 0;
     
-    reset_tss_stack();
+    reset_tss_stack(regs);
     // printf("Returning to process %d at EIP %x, in cr3 %x\n", get_current_pid(), regs->eip, get_pid_pd(get_current_pid()));
     return regs;
 }
@@ -116,6 +119,7 @@ void *_isr_handler(cpu_registers_t *regs){
     //     uint32_t new_pid = get_current_pid();
         
     //     for(;;);
+    //     reset_tss_stack(get_pid_esp0(get_current_pid()));
     //     return regs;
     // }
     printf("Kernel Panic!\n");
@@ -128,7 +132,7 @@ void *_isr_handler(cpu_registers_t *regs){
         asm volatile("mov %%cr2, %%eax;mov %0, %%eax": "=r"(cr2));
         volatile uint32_t pfa = cr2;
         // printf("Address: %x\n", pfa);
-        printf("Paddr and flags: %x, %x\n", get_paddr(pfa), get_pflags(pfa));
+        printf("Paddr and flags: %x, %x\n", get_paddr((void*)pfa), get_pflags((void*)pfa));
     }
     for(;;);
 }
@@ -138,8 +142,9 @@ cpu_registers_t *syscall(cpu_registers_t *regs){
         case KOS_INT_EXIT:
             
             printf("Exiting with code: %x on pid %d\n", regs->ebx, get_current_pid());
-            
             kill(get_current_pid());
+            reset_tss_stack(tss_esp0);
+            printf("Calling interrupt\n");
             asm("int $32");
         case KOS_INT_OPEN:
             printf("%s", regs->ebx);
@@ -202,17 +207,14 @@ uint32_t pit_init(uint32_t freq){
     return ms;
 }
 
-void *tss_vaddr = 0;
-void *tss_esp0 = 0;
-
 void *get_tss(){
     return tss_vaddr;
 }
 
-void reset_tss_stack(){
+void reset_tss_stack(void *esp0){
     tss_entry_t *tss = get_tss();
     if(!tss) return;
-    tss->esp0 = (uint32_t)tss_esp0;
+    tss->esp0 = (intptr_t)esp0;
     tss->ss = 0x18;
 }
 
@@ -245,6 +247,7 @@ void tss_init(uint32_t entry_no){
     
     tss->ss0 = 0x18;
     tss->esp0 = (uint32_t)(kmalloc(16) + PAGE_SIZE_BYTES * 16-4);//stack grows down
+    // tss->esp0 = (0xc0000000 - 0x10000)
     tss_esp0 = (void*)tss->esp0;
     
     load_tss(entry_no);
