@@ -38,7 +38,7 @@ void pci_read_file(vfile_t *file, uint32_t *buffer, uint64_t offset, uint64_t co
     uint8_t bus = file->id >> 16;
     uint8_t func = file->id>> 8 & 0xff;
     uint8_t slot = file->id & 0xff;
-    for(uint32_t i = 0; i < (count); i++){
+    for(uint32_t i = 0; i < (count)/sizeof(uint32_t); i++){
         buffer[i] = pci_read_config(bus, slot, func, offset + i*4) | (pci_read_config(bus, slot, func, (uint8_t)offset + i*4 + 2) << 16);
     }
     return;

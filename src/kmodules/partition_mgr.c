@@ -32,6 +32,10 @@ int write_part(vfile_t *file_entry, void *buffer, uint64_t offset, uint64_t coun
     uint32_t parent_index = file_entry->id;
     partent_t *partent = file_entry->private;
     vfile_t *parent = disk_references[parent_index].parent;
+    //TODO: sector sizes
+    if(count + offset > partent->start_lba + partent->sector_count * 512){
+        return 0;
+    }
     // disk_references[parent_index].parent->fileops->read()
     parent->fileops->write(parent, buffer, offset + partent->start_lba * parent->block_size_bytes, count);
     // parent->fileops->write(parent, buffer, offset + partent->start_lba * 512, count);
@@ -45,6 +49,9 @@ int read_part(vfile_t *file_entry, void *buffer, uint64_t offset, uint64_t count
     uint32_t parent_index = file_entry->id;
     partent_t *partent = file_entry->private;
     vfile_t *parent = disk_references[parent_index].parent;
+    if(count + offset > partent->start_lba + partent->sector_count * 512){
+        return 0;
+    }
     // disk_references[parent_index].parent->fileops->read()
     parent->fileops->read(parent, buffer, offset + partent->start_lba * parent->block_size_bytes, count);
     // parent->fileops->read(parent, buffer, offset + partent->start_lba * parent, count);

@@ -112,7 +112,7 @@ int ramfs_resize(vfile_t *file, uint32_t new_size_bytes){
             return 0;
         }
         if(file->private){
-            memcpy((uint32_t *)file->private, (uint32_t*)new_ptr, file->size);
+            memcpy((uint32_t *)file->private, (uint32_t*)new_ptr, new_size_bytes < old_size_pages ? new_size_bytes : file->size);
             kfree(file->private);
         }
         file->private = new_ptr;
@@ -184,7 +184,7 @@ int ramfs_delete(vfile_t *parent, char *child){
 int ramfs_write(vfile_t *file, char *buffer, uint64_t offset, uint64_t count){
     //file->private can be null here, as ramfs_resize will handle assigning if it is not already assigned
     if(!file || !buffer || (file->flags & (FS_FILE_READ_ONLY | FS_FILE_IS_DIR | FS_FILE_MOUNT))) return 0;
-    if(!ramfs_resize(file, count + offset)) return 0;
+    if(count+offset > file->size && !ramfs_resize(file, count + offset)) return 0;
     memcpy(buffer, file->private + offset, count);
     return count;
 }

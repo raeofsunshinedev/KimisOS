@@ -258,7 +258,7 @@ int read_disk(vfile_t *file, void *ptr, uint64_t offset, uint64_t count){
         }
         remaining_count -= (SECTOR_SZ - (offset & 0x1ff));
         ptr += SECTOR_SZ - offset;
-        offset += SECTOR_SZ - offset;
+        // offset += SECTOR_SZ - offset;
     }
     
     uint32_t max_read_size = drives[file->id].flags.huge ? LBA48_READ_BOUNDARY : LBA28_READ_BOUNDARY;
@@ -317,7 +317,7 @@ int write_disk(vfile_t *file, void *ptr, uint64_t offset, uint64_t count){
         }
         remaining_count -= (SECTOR_SZ - (offset & 0x1ff));
         ptr += SECTOR_SZ - offset;
-        offset += SECTOR_SZ - offset;
+        // offset += SECTOR_SZ - offset;
     }
     
     uint32_t max_read_size = drives[file->id].flags.huge ? LBA48_WRITE_BOUNDARY : LBA28_WRITE_BOUNDARY;
@@ -883,13 +883,13 @@ void init(KOS_MAPI_FP module_api, uint32_t api_version){
     for(uint32_t i = 0; i < file_count; i++){
         vfile_t *current_file = &(dir_data[i]);
         uint32_t class = 0;
-        fread(api, current_file, &class, 0x8, 1);
+        fread(api, current_file, &class, 0x8, sizeof(uint32_t));
         uint32_t progif = class >> 8 & 0xff;
         class >>= 16;
         api(MODULE_API_PRINT, MODULE_NAME, "Class: %x, %x\n", class, progif);
         if(class == 0x101 && PCI_IDE_SUPPORT_DMA(progif) && !native_ide_present){ //in this house, we only support DMA.
             uint32_t BARs[5] = {0};
-            fread(api, current_file, BARs, 0x10, 5);
+            fread(api, current_file, BARs, 0x10, 5*sizeof(uint32_t));
             if(PCI_IDE_NATIVE(~progif)){
                 native_ide_present = 1;
                 BARs[0] = (ATA_PRIMARY_BUS) | 1;

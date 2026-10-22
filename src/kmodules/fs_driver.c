@@ -106,7 +106,7 @@ uint8_t fat32_check_bounds(uint32_t index, uint32_t mount_index){
     }
     uint32_t min_fat_index = fat32_mounts[mount_index].fat_cache_start;
     uint32_t max_fat_index = min_fat_index + fat32_mounts[mount_index].fat_cache_size;
-    if(index < min_fat_index || index > max_fat_index){
+    if(index < min_fat_index || index >= max_fat_index){
         return 0;
     }
     

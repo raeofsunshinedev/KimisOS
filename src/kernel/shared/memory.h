@@ -82,7 +82,7 @@ inline void set_cr3(void *cr3){
 }
 inline void *get_cr3(){
     void *cr3;
-    asm volatile("mov %%cr3, %%eax;mov %0, %%eax": "=r"(cr3));
+    asm volatile("mov %%cr3, %%eax;mov %%eax, %0": "=r"(cr3));
     return cr3;
 }
 int pm_init(kernel_info_t *kernel_info);
@@ -90,6 +90,8 @@ int pm_init(kernel_info_t *kernel_info);
 void *kmalloc(uint32_t size_pgs);//allocates in multiples of 4096
 void *kfree(void *vaddr);
 void *kmalloc_page_paddr(uint32_t paddr, uint32_t size_pgs);
+
+uint32_t get_paddr_in_pd(void *vaddr, void *pd);
 
 uint32_t heap_init(uint32_t size_bytes);
 

@@ -344,6 +344,24 @@ uint32_t get_paddr(void *vaddr){
     uint32_t *pt = (uint32_t *)(0xffc00000 + (pd_index * 0x1000));
     return pt[pt_index] & 0xfffff000;
 }
+uint32_t get_paddr_in_pd(void *vaddr, void *pd){
+    //!TODO: Support 4mb pages
+    
+    uint32_t pd_index = (uint32_t)vaddr >> 22;
+    uint32_t pt_index = (uint32_t)vaddr >> 12 & 0x3ff;
+    // printf("unmap called");
+    uint32_t *pd_ptr = (uint32_t *)pd;
+    printf("Faulting? %x,%x\n", get_paddr(pd), get_cr3());
+    if(!pd_ptr[pd_index]){
+        return 0;
+    }
+    uint32_t *pt = kmalloc_page_paddr(pd_ptr[pd_index] & ~0xfff, 1);
+    printf("pd index: %d, %x\n", pd_index, vaddr);
+    intptr_t ret = pt[pt_index & 0xfffff000];
+    unmap(pt);
+    printf("Returning: %x\n", ret);
+    return ret;
+}
 uint32_t get_pflags(void *vaddr){
     uint32_t pd_index = (uint32_t)vaddr >> 22;
     uint32_t pt_index = (uint32_t)vaddr >> 12 & 0x3ff;
@@ -418,7 +436,6 @@ void *kmalloc_page_paddr(uint32_t paddr, uint32_t size_pgs){
         for(uint32_t j = 0; j < size_pgs; j++){
             uint32_t flags = PT_PRESENT | (PT_LINK_L * (j != 0)) | (PT_LINK_N * (j < (size_pgs - 1)) | PT_PCD);
             uint32_t physaddr = paddr + j * 4096;
-
             map((void *)((i + j) << 12), (void*)physaddr, flags);
         }
         spinlock_release(&page_lock);
@@ -462,11 +479,10 @@ void mapdup_full(void *pd){
     for(uint32_t i = 1; i < (0xc0000000 >> 22); i++){
         // map(pt_ptr, (void *)pd_ptr[i], PT_PRESENT);
         uint32_t old_pd_flags = old_pd_ptr[i] & 0xfff;
-        
         if(!(old_pd_flags & PD_PRESENT)){
             continue;
         }
-        
+        printf("i: %x\n", i);
         new_pd_ptr[i] = pm_alloc() | old_pd_flags;
         
         if(new_pd_ptr[i] < PAGE_SIZE_BYTES){
@@ -480,13 +496,13 @@ void mapdup_full(void *pd){
             //screw copy on write (for now)
             uint32_t old_pt_flags = old_pt_ptr[j] & 0xfff;
             new_pt_ptr[j] = 0;
-            if(old_pt_ptr[j] &&  old_pt_ptr[j] & PT_PRESENT){
+            if(old_pt_ptr[j] & PT_PRESENT){
                 new_pt_ptr[j] = pm_alloc() | old_pt_flags;
                 
                 if(new_pt_ptr[j] < PAGE_SIZE_BYTES){
                     PANIC("Out of memory!\n");
                 }
-                
+                // printf("?: o%x n%x\n", new_pt_ptr[j], old_pt_ptr[j]);
                 void *cpy = kmalloc_page_paddr(new_pt_ptr[j] & ~0xfff, 1);
                 void *addr = (void*)(i << 22 | j << 12);
                 memcpy(addr, cpy, PAGE_SIZE_BYTES);
@@ -502,7 +518,6 @@ void mapdup_full(void *pd){
     }
     new_pd_ptr[0] = old_pd_ptr[0];
     new_pd_ptr[1023] = get_paddr(pd) | PT_PRESENT;
-    unmap(new_pd_ptr);
     return;
 }
 
@@ -512,7 +527,7 @@ void map_in_pd(void *vaddr, void *paddr, uint32_t flags, void *pd){
     
     uint32_t *pd_ptr = pd;
     uint32_t *pt_ptr;
-    if(!pd_ptr[pd_index] & PD_PRESENT){
+    if(!(pd_ptr[pd_index] & PD_PRESENT)){
         pd_ptr[pd_index] = pm_alloc() | (flags & 0x7f);
         pt_ptr = kmalloc_page_paddr(pd_ptr[pd_index], 1);
         for(uint32_t i = 0; i < 0x400; i++)pt_ptr[i] = 0;

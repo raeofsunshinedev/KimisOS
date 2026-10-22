@@ -68,7 +68,9 @@ vfile_t *vfcreate(vfile_t *parent_dir, char *relpath, FS_FILE_FLAGS flags){
 
 int fdelete(vfile_t *parent, char *child){
     spinlock_acquire(&vfs_lock);
-    if(!parent || !parent->fileops || !parent->fileops->delete || !child){
+    if(!parent) parent = get_root_dir();
+    if(!parent->fileops || !parent->fileops->delete || !child){
+        spinlock_release(&vfs_lock);
         return 0;
     }
     int return_value = parent->fileops->delete(parent, child);
