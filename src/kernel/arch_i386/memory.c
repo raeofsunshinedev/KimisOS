@@ -357,7 +357,7 @@ uint32_t get_paddr_in_pd(void *vaddr, void *pd){
     }
     uint32_t *pt = kmalloc_page_paddr(pd_ptr[pd_index] & ~0xfff, 1);
     printf("pd index: %d, %x\n", pd_index, vaddr);
-    intptr_t ret = pt[pt_index & 0xfffff000];
+    intptr_t ret = pt[pt_index] & ~0x3ff;
     unmap(pt);
     printf("Returning: %x\n", ret);
     return ret;

@@ -9,7 +9,7 @@ _start:
     push eax
     mov edx, eax
     .ext:
-    cmp eax, 3
+    cmp eax, 2
     jne end
     mov ebx, string
     mov byte [ebx + 13], 0x41
@@ -20,10 +20,9 @@ _start:
     mov eax, 0
     ; mov ebx, edx
     pop ebx
+    ; jmp $
     int 0x80
 end:
-    mov eax, 3
-    jmp _start.ext
     mov eax, 1
     mov ebx, string
     int 0x80

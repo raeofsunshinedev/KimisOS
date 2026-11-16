@@ -103,7 +103,7 @@ cpu_registers_t *_irq_handler(cpu_registers_t *regs){
     }
     in_interrupt = 0;
     
-    reset_tss_stack(regs);
+    reset_tss_stack((void*)0xc0000000 - 0x10000);
     // printf("Returning to process %d at EIP %x, in cr3 %x\n", get_current_pid(), regs->eip, get_pid_pd(get_current_pid()));
     return regs;
 }
@@ -143,9 +143,9 @@ cpu_registers_t *syscall(cpu_registers_t *regs){
             
             printf("Exiting with code: %x on pid %d\n", regs->ebx, get_current_pid());
             kill(get_current_pid());
-            reset_tss_stack(tss_esp0);
-            printf("Calling interrupt\n");
-            asm("int $32");
+            // reset_tss_stack(regs);
+            regs = schedule(0);
+            break;
         case KOS_INT_OPEN:
             printf("%s", regs->ebx);
             break;
@@ -247,8 +247,8 @@ void tss_init(uint32_t entry_no){
     
     tss->ss0 = 0x18;
     tss->esp0 = (uint32_t)(kmalloc(16) + PAGE_SIZE_BYTES * 16-4);//stack grows down
-    // tss->esp0 = (0xc0000000 - 0x10000)
-    tss_esp0 = (void*)tss->esp0;
+    tss->esp0 = (0xc0000000 - 0x10000);
+    // tss_esp0 = (void*)tss->esp0;
     
     load_tss(entry_no);
     // gdt_entry_t 
