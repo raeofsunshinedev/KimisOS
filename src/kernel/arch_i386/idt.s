@@ -406,7 +406,6 @@ jump_usermode:
     
     mov edx, [ebp + 12]
     mov eax, [ebp + 8]
-    mov ebx, esp
     mov esp, eax
     push dword UMODE_DATA
     push eax

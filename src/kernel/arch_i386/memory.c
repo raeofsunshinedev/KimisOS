@@ -351,15 +351,12 @@ uint32_t get_paddr_in_pd(void *vaddr, void *pd){
     uint32_t pt_index = (uint32_t)vaddr >> 12 & 0x3ff;
     // printf("unmap called");
     uint32_t *pd_ptr = (uint32_t *)pd;
-    printf("Faulting? %x,%x\n", get_paddr(pd), get_cr3());
     if(!pd_ptr[pd_index]){
         return 0;
     }
     uint32_t *pt = kmalloc_page_paddr(pd_ptr[pd_index] & ~0xfff, 1);
-    printf("pd index: %d, %x\n", pd_index, vaddr);
-    intptr_t ret = pt[pt_index & 0xfffff000];
+    intptr_t ret = pt[pt_index] & ~0x3ff;
     unmap(pt);
-    printf("Returning: %x\n", ret);
     return ret;
 }
 uint32_t get_pflags(void *vaddr){
@@ -498,7 +495,7 @@ void mapdup_full(void *pd){
             new_pt_ptr[j] = 0;
             if(old_pt_ptr[j] & PT_PRESENT){
                 new_pt_ptr[j] = pm_alloc() | old_pt_flags;
-                
+                printf("Copying addr: %x to paddr %x from %x\n", i << 22 | j << 12, new_pt_ptr[j], get_paddr((void*)(i<<22 | j << 12)));
                 if(new_pt_ptr[j] < PAGE_SIZE_BYTES){
                     PANIC("Out of memory!\n");
                 }

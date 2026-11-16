@@ -82,6 +82,7 @@ inline void set_idt_entry(uint32_t index, void *ptr, uint8_t flags, uint16_t seg
 cpu_registers_t *_irq_handler(cpu_registers_t *regs){
     in_interrupt = 1;
     regs->esp = (uint32_t)regs;
+    
     uint32_t int_no = regs->int_no;
     if(int_no == 0x80){
         regs = syscall(regs);
@@ -94,7 +95,7 @@ cpu_registers_t *_irq_handler(cpu_registers_t *regs){
         if(int_no > 32 && interrupt_handlers[0]){
             regs = interrupt_handlers[0](regs);
         }
-        // printf("returned;")
+        printf("returned;");
         // printf("eip: %x", regs->eip);
     }
     outb(0x20, 0x20);
@@ -103,8 +104,8 @@ cpu_registers_t *_irq_handler(cpu_registers_t *regs){
     }
     in_interrupt = 0;
     
-    reset_tss_stack(regs);
-    // printf("Returning to process %d at EIP %x, in cr3 %x\n", get_current_pid(), regs->eip, get_pid_pd(get_current_pid()));
+    // printf("Returning to process %d at EIP %x, in cr3 %x\n", get_current_pid(), regs->eip);
+    // printf("onret\n");
     return regs;
 }
 
@@ -129,9 +130,9 @@ void *_isr_handler(cpu_registers_t *regs){
     printf("Error Code: %x\n", regs->pfa);
     if (regs->int_no == 14){
         volatile uint32_t cr2;
-        asm volatile("mov %%cr2, %%eax;mov %0, %%eax": "=r"(cr2));
+        asm volatile("mov %%cr2, %%eax;mov %%eax, %0": "=r"(cr2));
         volatile uint32_t pfa = cr2;
-        // printf("Address: %x\n", pfa);
+        printf("Address: %x\n", pfa);
         printf("Paddr and flags: %x, %x\n", get_paddr((void*)pfa), get_pflags((void*)pfa));
     }
     for(;;);
@@ -143,9 +144,11 @@ cpu_registers_t *syscall(cpu_registers_t *regs){
             
             printf("Exiting with code: %x on pid %d\n", regs->ebx, get_current_pid());
             kill(get_current_pid());
-            reset_tss_stack(tss_esp0);
-            printf("Calling interrupt\n");
-            asm("int $32");
+            // set_pid_blocked(get_current_pid());
+            reset_tss_stack((void*)0xbfff0000);
+            regs = schedule(0);
+            printf("!!!post schedule!!!\n");
+            break;
         case KOS_INT_OPEN:
             printf("%s", regs->ebx);
             break;
@@ -155,6 +158,7 @@ cpu_registers_t *syscall(cpu_registers_t *regs){
         default:
             printf("Unknown syscall\n");
     }
+    // printf("Returning!\n");
     return regs;
 }
 
@@ -246,8 +250,8 @@ void tss_init(uint32_t entry_no){
     memclr((char*)tss, sizeof(tss_entry_t));
     
     tss->ss0 = 0x18;
-    tss->esp0 = (uint32_t)(kmalloc(16) + PAGE_SIZE_BYTES * 16-4);//stack grows down
-    // tss->esp0 = (0xc0000000 - 0x10000)
+    // tss->esp0 = (uint32_t)(kmalloc(16) + PAGE_SIZE_BYTES * 16-4);//stack grows down
+    tss->esp0 = (0xc0000000 - 0x10000);
     tss_esp0 = (void*)tss->esp0;
     
     load_tss(entry_no);

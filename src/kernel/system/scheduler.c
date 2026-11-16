@@ -71,21 +71,31 @@ void remove_process_queue(uint32_t pid){
 }
 
 cpu_registers_t *schedule(cpu_registers_t *regs){
+    // asm("cli");
+    printf("current pid: %x\n", current_pid);
     if(queue_length == 0){
         add_process_queue(0);
     }
-    processes[current_pid].cpuregs = *regs;
+    if(regs){
+        processes[current_pid].cpuregs = *regs;
+    }
+    uint32_t oldpid = current_pid;
     current_queue_index++;
     if(current_queue_index >= queue_length){
         current_queue_index = 0;
     }
     current_pid = process_queue[current_queue_index % queue_length];
+    printf("New pid: %x\n", current_pid);
     //if the queue length is more than one, do not run the idle process.
     if(queue_length > 1 && current_pid == 0){
         current_pid = process_queue[++current_queue_index % queue_length];
     }
+    // printf("Moving to address space %x from %x\n", processes[current_pid].page_dir, processes[oldpid].page_dir);
     asm volatile("mov %0, %%cr3" : : "r"(processes[current_pid].page_dir));
     cpu_registers_t *newregs = (cpu_registers_t*)processes[current_pid].cpuregs.esp;
+    printf("Restoring eip from regs: %x\n", newregs->eip);
+    // asm("sti");
+    printf("Why is this faulting?");
     return newregs;
 }
 
@@ -132,6 +142,7 @@ uintptr_t get_pid_pd(uint32_t pid){
 void fork(cpu_registers_t *oldregs){
     cpu_registers_t regs = {0};
     regs = *oldregs;
+    oldregs->eax = 0;
     regs.eax = 0;
     
     intptr_t new_pd = pm_alloc();
@@ -139,8 +150,12 @@ void fork(cpu_registers_t *oldregs){
     
     mapdup_full(new_pd_ptr);
     
-    char *stack = kmalloc_page_paddr(get_paddr((void*)oldregs->esp) - 4096, 2);
-    
+    char *stack = kmalloc_page_paddr(get_paddr_in_pd((void*)oldregs->esp, new_pd_ptr) - 4096, 2);
+    printf("WTF\n");
+    // printf("PADDR %x %x\n", get_paddr((void*)regs.esp), get_paddr((void *)oldregs->esp));
+    // for(;;);
+    printf("Stack Paddr: %x, %x", get_paddr_in_pd((void*)regs.esp, new_pd_ptr), get_paddr((void*)regs.esp));
+    // for(;;);
     memcpy((char *)&regs, stack, sizeof(regs));
     unmap(new_pd_ptr);
     unmap(stack);
@@ -231,12 +246,11 @@ void kill(uint32_t pid){
         pd_ptr[i] = 0;
     }
     kfree(pd_ptr);
-    pm_free(pd);
+    // pm_free(pd);
     processes[pid].flags.present = 0;
     processes[pid].page_dir = 0;
     // printf("Removing from queue\n");
     remove_process_queue(pid);
-    // printf("Returning!\n");
     return;
 }
 
