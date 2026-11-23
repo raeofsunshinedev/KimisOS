@@ -140,17 +140,29 @@ void *_isr_handler(cpu_registers_t *regs){
 cpu_registers_t *syscall(cpu_registers_t *regs){
     switch(regs->eax){
         case KOS_INT_EXIT:
-            
             printf("Exiting with code: %x on pid %d\n", regs->ebx, get_current_pid());
             kill(get_current_pid());
             // reset_tss_stack(regs);
             regs = schedule(0);
             break;
         case KOS_INT_OPEN:
-            printf("%s", regs->ebx);
+            if(regs->ebx < 0x400000 || regs->ebx > 0xc0000000 || !get_paddr((void*)regs->ebx)){
+                mlog("KERNEL", "Segmentation Fault\n", MLOG_ERR);
+                kill(get_current_pid());
+                regs = schedule(0);
+                break;
+            }
+            regs->eax = allocate_file_descriptor(get_current_pid(), fopen((char *)regs->ebx));
+            break;
+        case KOS_INT_CLOSE:
+            regs->eax = -1;
+            close_file_descriptor(get_current_pid(), regs->ebx);
             break;
         case KOS_INT_FORK:
             fork(regs);
+            break;
+        case KOS_INT_DUP:
+            regs->eax = duplicate_file_descriptor(get_current_pid(), regs->ebx, regs->ecx);
             break;
         default:
             printf("Unknown syscall\n");

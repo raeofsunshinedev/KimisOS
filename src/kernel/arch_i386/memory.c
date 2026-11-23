@@ -351,15 +351,15 @@ uint32_t get_paddr_in_pd(void *vaddr, void *pd){
     uint32_t pt_index = (uint32_t)vaddr >> 12 & 0x3ff;
     // printf("unmap called");
     uint32_t *pd_ptr = (uint32_t *)pd;
-    printf("Faulting? %x,%x\n", get_paddr(pd), get_cr3());
+    // printf("Faulting? %x,%x\n", get_paddr(pd), get_cr3());
     if(!pd_ptr[pd_index]){
         return 0;
     }
     uint32_t *pt = kmalloc_page_paddr(pd_ptr[pd_index] & ~0xfff, 1);
-    printf("pd index: %d, %x\n", pd_index, vaddr);
+    // printf("pd index: %d, %x\n", pd_index, vaddr);
     intptr_t ret = pt[pt_index] & ~0x3ff;
     unmap(pt);
-    printf("Returning: %x\n", ret);
+    // printf("Returning: %x\n", ret);
     return ret;
 }
 uint32_t get_pflags(void *vaddr){
@@ -482,7 +482,7 @@ void mapdup_full(void *pd){
         if(!(old_pd_flags & PD_PRESENT)){
             continue;
         }
-        printf("i: %x\n", i);
+        // printf("i: %x\n", i);
         new_pd_ptr[i] = pm_alloc() | old_pd_flags;
         
         if(new_pd_ptr[i] < PAGE_SIZE_BYTES){

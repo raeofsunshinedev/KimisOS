@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include "vfs.h"
 #include "../shared/interrupts.h"
 
 #define DEFAULT_FD_MAX 1024
@@ -49,3 +50,7 @@ uint32_t get_pid_pd(uint32_t pid);
 int exec(char *filename, char **argv, uint32_t argc);
 void kill(uint32_t pid);
 void fork(cpu_registers_t *oldregs);
+
+int32_t close_file_descriptor(uint32_t pid, int32_t fd);
+int32_t allocate_file_descriptor(uint32_t pid, vfile_t *file);
+int32_t duplicate_file_descriptor(uint32_t pid, int32_t src, int32_t dest);

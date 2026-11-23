@@ -20,13 +20,20 @@ _start:
     mov eax, 0
     ; mov ebx, edx
     pop ebx
-    ; jmp $
+    jmp $
+    
     int 0x80
 end:
     mov eax, 1
     mov ebx, string
     int 0x80
     pop ebx
+    
+    mov eax, 7
+    int 0x80
+    
+    mov ebx, eax
+    
     mov eax, 0
     int 0x80
     jmp $

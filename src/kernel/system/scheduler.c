@@ -16,6 +16,10 @@ uint32_t volatile current_queue_index;
 
 spinlock_t proc_lock;
 
+volatile process_t *get_process(uint32_t pid){
+    return &(processes[pid]);
+}
+
 void scheduler_init(){
     processes = kmalloc((PROCESS_COUNT * sizeof(process_t) + 4095) / 4096);
     for(uint32_t i = 0; i < PROCESS_COUNT; i++){
@@ -57,6 +61,7 @@ void remove_process_queue(uint32_t pid){
         }
     }
     queue_length--;
+    // printf("Queue length: %x\n", queue_length);
     if(old_index == last_queue_index || old_index > queue_length || old_index > PROCESS_COUNT){
         // asm("sti");
         spinlock_release(&proc_lock);
@@ -71,7 +76,8 @@ void remove_process_queue(uint32_t pid){
 }
 
 cpu_registers_t *schedule(cpu_registers_t *regs){
-    if(queue_length == 0){
+    if(queue_length == 1){
+        printf("No active processes. Adding one\n");
         add_process_queue(0);
     }
     if (regs) processes[current_pid].cpuregs = *regs;
@@ -124,12 +130,85 @@ uint32_t spawn_new_process(cpu_registers_t defaultregs, char **argv, uint32_t ar
     add_process_queue_nolock(i);
     // asm("sti");
     spinlock_release(&proc_lock);
-    printf("Spawned pid %d at eip %x\n", i, defaultregs.eip);
+    // printf("Spawned pid %d at eip %x\n", i, defaultregs.eip);
     return i;
 }
 
 uintptr_t get_pid_pd(uint32_t pid){
     return (uintptr_t)processes[pid].page_dir;
+}
+
+int32_t duplicate_file_descriptor(uint32_t pid, int32_t src, int32_t dest){
+    if(src == -1){
+        mlog("KERNEL", "Scheduler: Error: Not implemented!\n", MLOG_PRINT);
+        mlog("KERNEL", "dupfd_not_implemented\n", MLOG_PRINT);
+    }
+    process_t *proc = &processes[pid];
+    
+    if(!proc) return -1;
+    
+    vfile_t **file_descriptors = (vfile_t **)proc->file_descriptors;
+    
+    if(!file_descriptors) return -1;
+    
+    if(dest > proc->max_descriptors){
+        return -1;
+    }
+    
+    file_descriptors[dest] = fopen(file_descriptors[src]->name);
+    return dest;
+}
+
+int32_t allocate_file_descriptor(uint32_t pid, vfile_t *file){
+    
+    process_t *proc = &processes[pid];
+    
+    if(!proc) return -1;
+    
+    vfile_t **file_descriptors = (vfile_t **)proc->file_descriptors;
+    
+    if(!file_descriptors) return -1;
+    
+    int32_t fd = -1;
+    
+    for(uint32_t i = 0; i < proc->max_descriptors; i++){
+        if(!file_descriptors[i]){
+            file_descriptors[i] = file;
+            fd = i;
+            break;
+        }
+    }
+    
+    return fd;
+}
+
+int32_t close_file_descriptor(uint32_t pid, int32_t fd){
+    if(fd == -1) return -1;
+    
+    process_t *proc = &processes[pid];
+    
+    if(!proc){
+        return -1;
+    }
+    
+    vfile_t **file_descriptors = (vfile_t *)proc->file_descriptors;
+    
+    if(!file_descriptors){
+        return -1;
+    }
+    
+    if(fd > proc->max_descriptors){
+        return -1;
+    }
+    
+    if(file_descriptors[fd] == 0){
+        //file descriptor is not open, return
+        return -1;
+    }
+    vfile_t *file = file_descriptors[fd];
+    fclose(file);
+    file_descriptors[fd] = 0;
+    return -1;
 }
 
 void fork(cpu_registers_t *oldregs){
@@ -145,12 +224,12 @@ void fork(cpu_registers_t *oldregs){
     
     char *stack = kmalloc_page_paddr(get_paddr_in_pd((void*)oldregs->esp, new_pd_ptr), 1);
     
-    printf("Paddr: %x %x\n", get_paddr_in_pd((void*)oldregs->esp, new_pd_ptr), get_paddr((void*)oldregs->esp));
+    // printf("Paddr: %x %x\n", get_paddr_in_pd((void*)oldregs->esp, new_pd_ptr), get_paddr((void*)oldregs->esp));
     
     memcpy((char *)&regs, stack, sizeof(regs));
     unmap(new_pd_ptr);
     unmap(stack);
-    unmap(stack - PAGE_SIZE_BYTES);
+    // unmap(stack - PAGE_SIZE_BYTES);
     // regs.esp = ((uint32_t)kmalloc(8) + PAGE_SIZE_BYTES * 8) - 4 - sizeof(regs);
     // regs.ebp = regs.esp;
     // regs.eip = (uint32_t)function;
@@ -160,8 +239,10 @@ void fork(cpu_registers_t *oldregs){
     processes[retpid].cpuregs = regs;
     processes[retpid].parent = current_pid;
     processes[retpid].page_dir = (void *)new_pd;
+    processes[retpid].file_descriptors = kmalloc(1);
+    processes[retpid].max_descriptors = 1024;
     
-    printf("New process forked: EIP:%x, CR3: %x\n", regs.eip, new_pd);
+    // printf("New process forked: EIP:%x, CR3: %x\n", regs.eip, new_pd);
     oldregs->eax = retpid;
     
     return;
@@ -209,7 +290,7 @@ int exec(char *filename, char **argv, uint32_t argc){
     // asm volatile("popf");
     // entry();
     // for(;;);
-    printf("Assigning ESP0: %x\n", esp0);
+    // printf("Assigning ESP0: %x\n", esp0);
     processes[current_pid].esp0 = esp0;
     
     jump_usermode(stack - 4, entry);
@@ -270,6 +351,8 @@ uint32_t thread_start(void (*function)()){
     memcpy((char *)&regs, (char*)regs.esp, sizeof(regs));
     uint32_t retpid = spawn_new_process(regs, 0, 0, (void *)0x10000);
     processes[retpid].parent = current_pid;
+    processes[retpid].file_descriptors = kmalloc(1);
+    processes[retpid].max_descriptors = 1024;
     processes[retpid].esp0 = (void*)regs.esp;
     return retpid;
 }
